@@ -167,7 +167,7 @@
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
                             <Label Content="Auto Continue in:"/>
                             <Label Name="lblTrackSelectCountDown" Width="80"  Content=""/>
-                            <Button x:Name="btnAddDiscToQueue" Content="Next" Width="91" Margin="10,0,10,0" Click="btnAddDiscToQueue_Click"/>
+                            <Button x:Name="btnAddDiscToQueue" Content="Add To Queue" Width="91" Margin="10,0,10,0" Click="btnAddDiscToQueue_Click"/>
                         </StackPanel>
                     </DockPanel>
                 </Grid>

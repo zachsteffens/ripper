@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -23,6 +24,7 @@ using Newtonsoft.Json;
 using System.Collections.ObjectModel;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using System.Windows.Threading;
+using System.Runtime.InteropServices;
 
 namespace dvdrip
 {
@@ -52,15 +54,21 @@ namespace dvdrip
 
         private ObservableCollection<QueuedItem> queuedItems;
         private static List<QueuedItem> waitingToRip;
+        private static List<QueuedItem> waitingToCopy;
         private static List<QueuedItem> waitingToCompress;
         private static Boolean currentlyRipping;
         private static Boolean currentlyCompressing;
+        private static Boolean currentlyCopying;
 
         private static bool isRippingThreadRunning;
         static BackgroundWorker rippingWorker;
         private static bool isCompressionThreadRunning;
         static BackgroundWorker compressionWorker;
+        private static bool isCopyThreadRunning;
+        static BackgroundWorker copyWorker;
+
         private object lockObj;
+
         #endregion
 
 
@@ -76,6 +84,7 @@ namespace dvdrip
             prgLoadingDisc.Visibility = Visibility.Hidden;
             queuedItems = new ObservableCollection<QueuedItem>();
             waitingToRip = new List<QueuedItem>();
+            waitingToCopy = new List<QueuedItem>();
             waitingToCompress = new List<QueuedItem>();
 
             lvInProgress.ItemsSource = queuedItems;
@@ -91,9 +100,145 @@ namespace dvdrip
             isCompressionThreadRunning = true;
             compressionWorker.DoWork += compressionThread;
             compressionWorker.RunWorkerAsync();
+
+            copyWorker = new BackgroundWorker();
+            isCopyThreadRunning = true;
+            copyWorker.DoWork += copyfileThread;
+            copyWorker.RunWorkerAsync();
+
         }
         #endregion
 
+        #region Asyncronous Method to monitor and rip
+
+        private String RipDiscToMkv(QueuedItem itemToRip)
+        {
+
+            ////remove the directory if it exists
+            string pathToCreateFiles = System.IO.Path.GetFullPath(itemToRip.fullPath);
+
+            try { Directory.Delete(pathToCreateFiles, true); }
+            catch (Exception e) { }
+
+            try { DirectoryInfo di = Directory.CreateDirectory(pathToCreateFiles); }
+            catch (Exception e) { }
+
+
+
+            // Start the child process.
+            Process p = new Process();
+            // Redirect the output stream of the child process.
+            p.StartInfo.UseShellExecute = false;
+
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon.exe";
+            p.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
+            p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            p.StartInfo.CreateNoWindow = true;
+            p.Start();
+            // Do not wait for the child process to exit before
+            // reading to the end of its redirected stream.
+            // p.WaitForExit();
+            // Read the output stream first and then wait.
+            string output = p.StandardOutput.ReadToEnd();
+            p.WaitForExit();
+            try
+            {
+                string rippedTitle = Directory.GetFiles(pathToCreateFiles)[0];
+                int indexofslash = rippedTitle.LastIndexOf("\\");
+                itemToRip.pathToRip = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_rip.mkv";
+                itemToRip.pathToCompression = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_compressed.mkv";
+                System.IO.File.Move(rippedTitle, itemToRip.pathToRip);
+            }
+            catch (Exception e) { }
+            //return output;
+
+
+            return "";
+        }
+
+        private String CompressWithHandbrake(QueuedItem item)
+        {
+
+            // Start the child process.
+            Process p = new Process();
+            // Redirect the output stream of the child process.
+            p.StartInfo.UseShellExecute = false;
+
+            p.StartInfo.RedirectStandardOutput = true;
+            p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Handbrake\\HandBrakeCLI.exe";
+            p.StartInfo.Arguments = "-e x264  -q 20.0 -a 1 -E ffaac,copy:ac3 -B 160 -6 dpl2 -R Auto -D 0.0 --audio-copy-mask aac,ac3,dtshd,dts,mp3 --audio-fallback ffac3 -f av_mkv --strict-anamorphic --denoise medium -m --x264-preset veryslow --x264-tune film --h264-profile high --h264-level 3.1 --subtitle scan --subtitle-forced --subtitle-burned -i \"" + item.pathToRip + "\" -o \"" + item.pathToCompression + "\"";
+            p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+            p.StartInfo.CreateNoWindow = true;
+            p.Start();
+            // Do not wait for the child process to exit before
+            // reading to the end of its redirected stream.
+            // p.WaitForExit();
+            // Read the output stream first and then wait.
+            string output = p.StandardOutput.ReadToEnd();
+            p.WaitForExit();
+
+            return output;
+
+
+
+        }
+
+        private async void copyfileThread(object sender, DoWorkEventArgs e)
+        {
+            while (isCopyThreadRunning)
+            {
+                if (!currentlyCopying && waitingToCopy.Count > 0)
+                {
+                    QueuedItem itemToCopy = waitingToCopy[0];
+                    waitingToCopy.RemoveAt(0);
+
+                    QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCopy.title).FirstOrDefault();
+                    thisItem.copying = true;
+                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    {
+                        lvInProgress.Items.Refresh();
+                        lvInProgress.UpdateLayout();
+                    }));
+                    System.Diagnostics.Debug.WriteLine("copying " + thisItem.title);
+
+                    StringBuilder copyToPath = new StringBuilder();
+                    copyToPath.Append(ConfigurationManager.AppSettings["pathToNetworkMedia"]);
+                    copyToPath.Append("Movies\\");
+                    copyToPath.Append(thisItem.title);
+
+                    try { Directory.Delete(copyToPath.ToString(), true); }
+                    catch (Exception ex) { }
+
+                    try { DirectoryInfo di = Directory.CreateDirectory(copyToPath.ToString()); }
+                    catch (Exception ex) { }
+
+                    copyToPath.Append("\\");
+                    copyToPath.Append(thisItem.title);
+                    copyToPath.Append(".mkv");
+
+                    
+
+                    File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
+
+                    File.Delete(thisItem.pathToRip);
+                    File.Delete(thisItem.pathToCompression);
+                    //File.Copy(@"D:\From David\Media\Movies\2 Guns (2013)\2 Guns (2013).mp4", @"M:\Media\2 Guns (2013).mp4", true);
+
+                    System.Diagnostics.Debug.WriteLine("copy of " + thisItem.title + " complete");
+
+                    thisItem.copying = false;
+                    thisItem.copied = true;
+                    thisItem.removed = true;
+                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    {
+                        lvInProgress.Items.Refresh();
+                        lvInProgress.UpdateLayout();
+                    }));
+                    currentlyCopying = false;
+                }
+            }
+        }
 
         private async void ripDiscThread(object sender, DoWorkEventArgs e)
         {
@@ -103,31 +248,38 @@ namespace dvdrip
             {
                 if (!currentlyRipping && waitingToRip.Count > 0)
                 {
+                    currentlyRipping = true;
                     QueuedItem itemToRip = waitingToRip[0];
                     waitingToRip.RemoveAt(0);
 
                     QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToRip.title).FirstOrDefault();
                     thisItem.ripping = true;
+                    //refresn the view
                     await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
                         lvInProgress.UpdateLayout();
                     }));
                     System.Diagnostics.Debug.WriteLine("ripping " + thisItem.title);
-                    //var rippingDisc = Task<string>.Factory.StartNew(() => RipDiscToMkv(thisItem));
-                    System.Threading.Thread.Sleep(15000);
-                    //await rippingDisc;
+                    var rippingDisc = Task<string>.Factory.StartNew(() => RipDiscToMkv(thisItem));
+                    //System.Threading.Thread.Sleep(15000);
+                    await rippingDisc;
                     System.Diagnostics.Debug.WriteLine("rip of " + thisItem.title + " complete");
 
                     thisItem.ripping = false;
                     thisItem.ripped = true;
                     waitingToCompress.Add(thisItem);
+                    //refresn the view
                     await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
                         lvInProgress.UpdateLayout();
                     }));
                     currentlyRipping = false;
+
+                    //eject the disc
+                    EjectMedia.Eject(@"\\.\" + ConfigurationManager.AppSettings["dvdRomDriveLetter"] + ": ");
+
                 }
                 else
                 {
@@ -139,16 +291,18 @@ namespace dvdrip
 
         private async void compressionThread(object sender, DoWorkEventArgs e)
         {
-            
+
             while (isCompressionThreadRunning)
             {
                 if (!currentlyCompressing && waitingToCompress.Count > 0)
                 {
+                    currentlyCompressing = true;
                     QueuedItem itemToCompress = waitingToCompress[0];
                     waitingToCompress.RemoveAt(0);
 
                     QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCompress.title).FirstOrDefault();
                     thisItem.compressing = true;
+                    //refresn the view
                     await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
@@ -157,18 +311,21 @@ namespace dvdrip
                     System.Diagnostics.Debug.WriteLine("compressing " + thisItem.title);
 
                     //var compressingMkv = Task<string>.Factory.StartNew(() => CompressWithHandbrake(thisItem));
-                    System.Threading.Thread.Sleep(15000);
+                    //System.Threading.Thread.Sleep(15000);
 
                     //await compressingMkv;
                     System.Diagnostics.Debug.WriteLine("compression of " + thisItem.title + " complete");
                     thisItem.compressing = false;
                     thisItem.compressed = true;
                     thisItem.copied = true;
+                    waitingToCopy.Add(thisItem);
+                    //refresn the view
                     await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
                         lvInProgress.UpdateLayout();
                     }));
+
                     currentlyCompressing = false;
                 }
                 else
@@ -177,12 +334,21 @@ namespace dvdrip
                 }
             }
         }
+        
+        #endregion
+
 
 
         #region High Level App Activities (Add/Remove Disc)
 
         private void btnCheckDriveMovie_Click(object sender, RoutedEventArgs e)
         {
+            //QueuedItem testCopy = new QueuedItem("path", "toCopy", "1");
+            //testCopy.compressed = true;
+            //testCopy.ripped = true;
+            //queuedItems.Add(testCopy);
+            //waitingToCopy.Add(testCopy);
+
             discIsMovie = true;
             foreach (var drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.CDRom))
             {
@@ -652,79 +818,7 @@ namespace dvdrip
 
         
 
-        private String RipDiscToMkv(QueuedItem itemToRip)
-        {
-
-            ////remove the directory if it exists
-            string pathToCreateFiles = System.IO.Path.GetFullPath(itemToRip.fullPath);
-
-            try { Directory.Delete(pathToCreateFiles, true); }
-            catch (Exception e) { }
-
-            try { DirectoryInfo di = Directory.CreateDirectory(pathToCreateFiles); }
-            catch (Exception e) { }
-
-
-
-            // Start the child process.
-            Process p = new Process();
-            // Redirect the output stream of the child process.
-            p.StartInfo.UseShellExecute = false;
-
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon.exe";
-            p.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
-            p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-            p.StartInfo.CreateNoWindow = true;
-            p.Start();
-            // Do not wait for the child process to exit before
-            // reading to the end of its redirected stream.
-            // p.WaitForExit();
-            // Read the output stream first and then wait.
-            string output = p.StandardOutput.ReadToEnd();
-            p.WaitForExit();
-            try
-            {
-                string pathToRip = Directory.GetFiles(pathToCreateFiles)[0];
-                int indexofslash = pathToRip.LastIndexOf("\\");
-                itemToRip.pathToRip = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_rip.mkv";
-                itemToRip.pathToCompression = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_compressed.mkv";
-                System.IO.File.Move(pathToRip, fullPathToRippedMkv);
-            }
-            catch (Exception e) { }
-            //return output;
-
-
-            return "";
-        }
-
-        private String CompressWithHandbrake(QueuedItem item)
-        {
-
-            // Start the child process.
-            Process p = new Process();
-            // Redirect the output stream of the child process.
-            p.StartInfo.UseShellExecute = false;
-
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Handbrake\\HandBrakeCLI.exe";
-            p.StartInfo.Arguments = "-e x264  -q 20.0 -a 1 -E ffaac,copy:ac3 -B 160 -6 dpl2 -R Auto -D 0.0 --audio-copy-mask aac,ac3,dtshd,dts,mp3 --audio-fallback ffac3 -f av_mkv --strict-anamorphic --denoise medium -m --x264-preset veryslow --x264-tune film --h264-profile high --h264-level 3.1 --subtitle scan --subtitle-forced --subtitle-burned -i \"" + item.pathToRip + "\" -o \"" + item.pathToCompression+ "\"";
-            p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-            p.StartInfo.CreateNoWindow = true;
-            p.Start();
-            // Do not wait for the child process to exit before
-            // reading to the end of its redirected stream.
-            // p.WaitForExit();
-            // Read the output stream first and then wait.
-            string output = p.StandardOutput.ReadToEnd();
-            p.WaitForExit();
-
-            return output;
-
-
-            
-        }
-
+       
         private string getDirectorySafeString(string original)
         {
             foreach (char item in System.IO.Path.GetInvalidFileNameChars())
@@ -735,6 +829,8 @@ namespace dvdrip
         }
 
         #endregion
+
+      
 
         #region Handlers for Disc Detection
         protected override void OnSourceInitialized(EventArgs e)
@@ -974,4 +1070,75 @@ namespace dvdrip
         public string tagline { get; set; }
         public string title { get; set; }
     }
+
+    class EjectMedia
+    {
+        // Constants used in DLL methods
+        const uint GENERICREAD = 0x80000000;
+        const uint OPENEXISTING = 3;
+        const uint IOCTL_STORAGE_EJECT_MEDIA = 2967560;
+        const int INVALID_HANDLE = -1;
+
+        // File Handle
+        private static IntPtr fileHandle;
+        private static uint returnedBytes;
+        // Use Kernel32 via interop to access required methods
+        // Get a File Handle
+        [DllImport("kernel32", SetLastError = true)]
+        static extern IntPtr CreateFile(string fileName,
+        uint desiredAccess,
+        uint shareMode,
+        IntPtr attributes,
+        uint creationDisposition,
+        uint flagsAndAttributes,
+        IntPtr templateFile);
+        [DllImport("kernel32", SetLastError = true)]
+        static extern int CloseHandle(IntPtr driveHandle);
+        [DllImport("kernel32", SetLastError = true)]
+        static extern bool DeviceIoControl(IntPtr driveHandle,
+        uint IoControlCode,
+        IntPtr lpInBuffer,
+        uint inBufferSize,
+        IntPtr lpOutBuffer,
+        uint outBufferSize,
+        ref uint lpBytesReturned,
+                 IntPtr lpOverlapped);
+
+        public static void Eject(string driveLetter)
+        {
+            try
+            {
+                // Create an handle to the drive
+                fileHandle = CreateFile(driveLetter,
+                 GENERICREAD,
+                 0,
+                 IntPtr.Zero,
+                 OPENEXISTING,
+                 0,
+                  IntPtr.Zero);
+                if ((int)fileHandle != INVALID_HANDLE)
+                {
+                    // Eject the disk
+                    DeviceIoControl(fileHandle,
+                     IOCTL_STORAGE_EJECT_MEDIA,
+                     IntPtr.Zero, 0,
+                     IntPtr.Zero, 0,
+                     ref returnedBytes,
+                            IntPtr.Zero);
+                }
+            }
+            catch
+            {
+                throw new Exception(Marshal.GetLastWin32Error().ToString());
+            }
+            finally
+            {
+                // Close Drive Handle
+                CloseHandle(fileHandle);
+                fileHandle = IntPtr.Zero;
+            }
+        }
+    }
 }
+
+
