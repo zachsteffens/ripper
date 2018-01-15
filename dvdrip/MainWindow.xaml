@@ -1,0 +1,139 @@
+﻿<Window x:Class="dvdrip.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:aw="clr-namespace:AvalonWizard;assembly=AvalonWizard"
+        xmlns:local="clr-namespace:dvdrip"
+        mc:Ignorable="d"
+        Title="DVD Backup" Height="628" Width="858">
+    <Grid>
+        <Button x:Name="btnCheckDrive" Content="Check for Disc" VerticalAlignment="Center" Width="91" Click="btnCheckDrive_Click" Margin="0,0,0,40" HorizontalAlignment="Center"/>
+        <ProgressBar Name="prgLoadingDisc" IsIndeterminate="true" Height="10"  VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
+        <aw:Wizard Visibility="Visible" x:Name="Wizard" aw:Designer.PageIndex="1" Margin="0" CurrentPageChanged="Wizard_CurrentPageChanged">
+            
+            <aw:WizardPage Header="Confirm Disc" aw:AeroWizard.GlowStyle="GlowingText" ShowCancel="False">
+                <StackPanel Orientation="Vertical">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBox Name="txtTitleSearch" Width="400" Margin="10,0,0,10" GotFocus="txtTitleSearch_GotFocus"></TextBox>
+                        <Button Name="btnTitleSearch" Content="Search Again" Width="100" Margin="10,0,0,10" Click="btnTitleSearch_Click"></Button>
+                    </StackPanel>
+                    <DockPanel Height="398">
+                        <ListView DockPanel.Dock="Left" x:Name="grdMovies" Margin="10,0,0,0"
+                                  
+                                  ItemsSource="{Binding}"
+                                  Width="400" SelectionChanged="grdMovies_SelectionChanged">
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="IsSelected" Value="{Binding selectedTitle}"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                            <ListView.View>
+                                <GridView>
+                                    <GridViewColumn Header="Title"
+                                            DisplayMemberBinding="{Binding Path=title}"/>
+                                    <GridViewColumn Header="Release Date"
+                                            DisplayMemberBinding="{Binding Path=release_date}"/>
+                                </GridView>
+                            </ListView.View>
+
+
+
+                        </ListView>
+                        <StackPanel DockPanel.Dock="Right"
+                                    Name="spSelectedItem"
+                                    Orientation="Vertical">
+                            <Label FontWeight="Bold" Content="Title:"></Label>
+                            <Label x:Name="lblSelectedTitle" Content="lblSelectedTitle"></Label>
+                            <Label FontWeight="Bold" Content="Description:"></Label>
+                            <TextBlock x:Name="lblSelectedDescription" TextWrapping="Wrap"
+                                       Text="lblSelectedDescription"
+                                       MaxWidth="560"></TextBlock>
+                            <Image Name="imgSelectedItemPoster" Width="185" Height="278"/>
+                        </StackPanel>
+                        
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,0">
+                        <Label Content="Auto Continue in:"/>
+                        <Label Name="lblDiscSelectCountDown" Content=""/>
+                    </StackPanel>
+
+
+                </StackPanel>
+            </aw:WizardPage>
+            <aw:WizardPage Header="Track Info" aw:AeroWizard.GlowStyle="GlowingText" ShowCancel="False">
+                <StackPanel Orientation="Vertical">
+                    <Label FontSize="15" FontWeight="Bold" Content="Selected Movie Details" BorderBrush="Black" BorderThickness="0,0,0 1"/>
+                    <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
+                        <Label FontStyle="Italic" FontWeight="Bold" Content="Title:"/>
+                        <Label Name="lblSelectedMovieTitle" Content=""/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
+                        <Label FontStyle="Italic" FontWeight="Bold" Content="Runtime:"/>
+                        <Label Name="lblSelectedMovieLength" Content=""/>
+                    </StackPanel>
+                    <Separator Height="3" BorderBrush="Black" BorderThickness="0,0,0 1" />
+                    <StackPanel Orientation="Horizontal">
+                        <StackPanel Name="spReadingTrackInfo" Orientation="Vertical" Width="848" Visibility="Collapsed">
+                            <Label HorizontalAlignment="Center" FontSize="15" FontWeight="Bold"  Content="Reading track info from disc"/>
+                            <ProgressBar Name="prgLoadingTrackInfo" IsIndeterminate="true" Height="10" VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                        <DockPanel Name="dockTrackInfo">
+                            <ListView Name="grdTracks" 
+                                  DockPanel.Dock="Left"
+                                  Margin="10,0,0,0" HorizontalAlignment="Left"
+                                      ItemsSource="{Binding}"
+                                      Width="400" SelectionChanged="grdTracks_SelectionChanged">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="IsSelected" Value="{Binding selectedTrack}"/>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="Size(MB)"
+                                                DisplayMemberBinding="{Binding Path=size}"/>
+                                        <GridViewColumn Header="Length"
+                                                DisplayMemberBinding="{Binding Path=length}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                            <StackPanel Margin="10,0,0,0" Orientation="Vertical" DockPanel.Dock="Right">
+                                <Label Content="Path to store ripped video:" FontWeight="Bold"></Label>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Name="txtRipLocation" Width="300" Text="c:\somewhere" IsEnabled="False"></TextBox>
+                                    <Button Padding="5,0,5,0" Name="btnBrowseRipLocation" Content="browse" Click="btnBrowseRipLocation_Click"></Button>
+                                </StackPanel>
+                                <Label Name="lblFullPath" Margin="10,0,0,0"  FontStyle="Italic" Content="*c:\somewhere"></Label>
+
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,5,0">
+                        <Label Content="Auto Continue in:"/>
+                        <Label Name="lblTrackSelectCountDown" Content=""/>
+                    </StackPanel>
+                </StackPanel>
+            </aw:WizardPage>
+            <aw:WizardPage Header="Copying Movie" aw:AeroWizard.GlowStyle="GlowingText" ShowCancel="False">
+
+                <StackPanel Margin="10,0,0,0" Orientation="Vertical" >
+                    <StackPanel Orientation="Horizontal">
+                        <Label Name="lblRipMessage" Content="Rip to MKV - In Progress" FontWeight="Bold"></Label>
+                        <ProgressBar Margin="10,0,0,0" Height="2" Name="prgRipToMkv" IsIndeterminate="True" Width="500"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Label Name="lblCompressMessage" Content="Compress with Handbrake - waiting" FontWeight="Bold"></Label>
+                        <ProgressBar Margin="10,0,0,0" Height="2" Name="prgCompress" Visibility="Hidden" IsIndeterminate="True" Width="500"/>
+                    </StackPanel>
+
+                </StackPanel>
+
+
+            </aw:WizardPage>
+
+        </aw:Wizard>
+        
+
+    </Grid>
+</Window>
