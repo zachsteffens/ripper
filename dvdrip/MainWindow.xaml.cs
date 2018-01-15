@@ -131,8 +131,8 @@ namespace dvdrip
             p.StartInfo.UseShellExecute = false;
 
             p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon.exe";
-            p.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
+            p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
+            p.StartInfo.Arguments = "mkv disc:1 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
             p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             p.StartInfo.CreateNoWindow = true;
             p.Start();
@@ -278,7 +278,7 @@ namespace dvdrip
                     currentlyRipping = false;
 
                     //eject the disc
-                    EjectMedia.Eject(@"\\.\" + ConfigurationManager.AppSettings["dvdRomDriveLetter"] + ": ");
+ EjectMedia.Eject(@"\\.\" + ConfigurationManager.AppSettings["dvdRomDriveLetter"] + ": ");
 
                 }
                 else
@@ -310,10 +310,10 @@ namespace dvdrip
                     }));
                     System.Diagnostics.Debug.WriteLine("compressing " + thisItem.title);
 
-                    //var compressingMkv = Task<string>.Factory.StartNew(() => CompressWithHandbrake(thisItem));
+                    var compressingMkv = Task<string>.Factory.StartNew(() => CompressWithHandbrake(thisItem));
                     //System.Threading.Thread.Sleep(15000);
 
-                    //await compressingMkv;
+                    await compressingMkv;
                     System.Diagnostics.Debug.WriteLine("compression of " + thisItem.title + " complete");
                     thisItem.compressing = false;
                     thisItem.compressed = true;
@@ -475,7 +475,11 @@ namespace dvdrip
             {
                 foreach (ManagementObject mo in moc)
                 {
-                    returnMe.AppendLine(mo["VolumeName"].ToString());
+                    try
+                    {
+                        returnMe.AppendLine(mo["VolumeName"].ToString());
+                    }
+                    catch (Exception) { }
                 }
             }
             string toReturn = returnMe.ToString().Replace("\r\n", "");
@@ -588,7 +592,8 @@ namespace dvdrip
             spReadingTrackInfo.Visibility = Visibility.Visible;
             dockTrackInfo.Visibility = Visibility.Collapsed;
 
-            string suggestedMovieBasePath = "D:\\Ripped\\Movies\\";
+            
+            string suggestedMovieBasePath = ConfigurationManager.AppSettings["pathToMediaForRip"];
             StringBuilder suggestedMovieTitle = new StringBuilder();
             suggestedMovieTitle.Append(selectedMovieDetails.title);
             suggestedMovieTitle.Append(" (");
@@ -645,6 +650,13 @@ namespace dvdrip
                 suggestedMovieTitle.Append(")");
                 txtRipLocation.Text = dialog.FileName;
                 lblFullPath.Content = dialog.FileName + "\\" + getDirectorySafeString(suggestedMovieTitle.ToString());
+
+                Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+
+                config.AppSettings.Settings.Remove("pathToMediaForRip");
+
+                config.AppSettings.Settings.Add("pathToMediaForRip", dialog.FileName);
+                config.Save(ConfigurationSaveMode.Modified);
             }
         }
 
@@ -683,8 +695,8 @@ namespace dvdrip
             p.StartInfo.UseShellExecute = false;
 
             p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon.exe";
-            p.StartInfo.Arguments = "-r info disc:0";
+            p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
+            p.StartInfo.Arguments = "-r info disc:1";
             p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             p.StartInfo.CreateNoWindow = true;
             p.Start();
