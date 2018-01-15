@@ -26,10 +26,6 @@ using System.Windows.Threading;
 
 namespace dvdrip
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
-    /// 
     
 
     public partial class MainWindow : Window
@@ -37,6 +33,7 @@ namespace dvdrip
         #region Local Variables
         public IntPtr windowHandle;
         public Boolean discIsBlueRay;
+        public Boolean discIsMovie;
         public string discName;
         const string tmdbApiKey = "1abe04137ccd4fa521cb5f8e337b9418";
         const string tmdbImageApiUrl = "http://image.tmdb.org/t/p/w185"; // /nuUKcfRYjifwjIJPN1J6kIGcSvD.jpg"
@@ -52,6 +49,18 @@ namespace dvdrip
         private DispatcherTimer timerDiscSelect;
         private TimeSpan timeTrackSelect;
         private DispatcherTimer timerTrackSelect;
+
+        private ObservableCollection<QueuedItem> queuedItems;
+        private static List<QueuedItem> waitingToRip;
+        private static List<QueuedItem> waitingToCompress;
+        private static Boolean currentlyRipping;
+        private static Boolean currentlyCompressing;
+
+        private static bool isRippingThreadRunning;
+        static BackgroundWorker rippingWorker;
+        private static bool isCompressionThreadRunning;
+        static BackgroundWorker compressionWorker;
+        private object lockObj;
         #endregion
 
 
@@ -61,16 +70,129 @@ namespace dvdrip
         {
             InitializeComponent();
 
-            Wizard.Visibility = Visibility.Collapsed;
+            StartOver();
+            lockObj = new object();
             matchingTitles = new ObservableCollection<tmdbResult>();
             prgLoadingDisc.Visibility = Visibility.Hidden;
+            queuedItems = new ObservableCollection<QueuedItem>();
+            waitingToRip = new List<QueuedItem>();
+            waitingToCompress = new List<QueuedItem>();
+
+            lvInProgress.ItemsSource = queuedItems;
+
+            BindingOperations.EnableCollectionSynchronization(queuedItems, lockObj);
+
+            rippingWorker = new BackgroundWorker();
+            isRippingThreadRunning = true;
+            rippingWorker.DoWork += ripDiscThread;
+            rippingWorker.RunWorkerAsync();
+
+            compressionWorker = new BackgroundWorker();
+            isCompressionThreadRunning = true;
+            compressionWorker.DoWork += compressionThread;
+            compressionWorker.RunWorkerAsync();
         }
         #endregion
 
+
+        private async void ripDiscThread(object sender, DoWorkEventArgs e)
+        {
+
+            //check to see if ripping
+            while (isRippingThreadRunning)
+            {
+                if (!currentlyRipping && waitingToRip.Count > 0)
+                {
+                    QueuedItem itemToRip = waitingToRip[0];
+                    waitingToRip.RemoveAt(0);
+
+                    QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToRip.title).FirstOrDefault();
+                    thisItem.ripping = true;
+                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    {
+                        lvInProgress.Items.Refresh();
+                        lvInProgress.UpdateLayout();
+                    }));
+                    System.Diagnostics.Debug.WriteLine("ripping " + thisItem.title);
+                    //var rippingDisc = Task<string>.Factory.StartNew(() => RipDiscToMkv(thisItem));
+                    System.Threading.Thread.Sleep(15000);
+                    //await rippingDisc;
+                    System.Diagnostics.Debug.WriteLine("rip of " + thisItem.title + " complete");
+
+                    thisItem.ripping = false;
+                    thisItem.ripped = true;
+                    waitingToCompress.Add(thisItem);
+                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    {
+                        lvInProgress.Items.Refresh();
+                        lvInProgress.UpdateLayout();
+                    }));
+                    currentlyRipping = false;
+                }
+                else
+                {
+                    System.Threading.Thread.Sleep(10000);
+                }
+            }
+
+        }
+
+        private async void compressionThread(object sender, DoWorkEventArgs e)
+        {
+            
+            while (isCompressionThreadRunning)
+            {
+                if (!currentlyCompressing && waitingToCompress.Count > 0)
+                {
+                    QueuedItem itemToCompress = waitingToCompress[0];
+                    waitingToCompress.RemoveAt(0);
+
+                    QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCompress.title).FirstOrDefault();
+                    thisItem.compressing = true;
+                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    {
+                        lvInProgress.Items.Refresh();
+                        lvInProgress.UpdateLayout();
+                    }));
+                    System.Diagnostics.Debug.WriteLine("compressing " + thisItem.title);
+
+                    //var compressingMkv = Task<string>.Factory.StartNew(() => CompressWithHandbrake(thisItem));
+                    System.Threading.Thread.Sleep(15000);
+
+                    //await compressingMkv;
+                    System.Diagnostics.Debug.WriteLine("compression of " + thisItem.title + " complete");
+                    thisItem.compressing = false;
+                    thisItem.compressed = true;
+                    thisItem.copied = true;
+                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    {
+                        lvInProgress.Items.Refresh();
+                        lvInProgress.UpdateLayout();
+                    }));
+                    currentlyCompressing = false;
+                }
+                else
+                {
+                    System.Threading.Thread.Sleep(10000);
+                }
+            }
+        }
+
+
         #region High Level App Activities (Add/Remove Disc)
 
-        private void btnCheckDrive_Click(object sender, RoutedEventArgs e)
+        private void btnCheckDriveMovie_Click(object sender, RoutedEventArgs e)
         {
+            discIsMovie = true;
+            foreach (var drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.CDRom))
+            {
+                if (drive.IsReady)
+                    DiscReady();
+            }
+        }
+        private void btnCheckDriveTv_Click(object sender, RoutedEventArgs e)
+        {
+            discIsMovie = false;
             foreach (var drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.CDRom))
             {
                 if (drive.IsReady)
@@ -80,53 +202,66 @@ namespace dvdrip
 
         private void DiscRemoved()
         {
-            btnCheckDrive.Visibility = Visibility.Visible;
-            prgLoadingDisc.Visibility = Visibility.Hidden;
-            Wizard.Visibility = Visibility.Collapsed;
+            StartOver();
         }
 
-        private void Wizard_CurrentPageChanged(object sender, AvalonWizard.CurrentPageChangedEventArgs e)
+        private void StartOver()
         {
-            switch (Wizard.CurrentPageIndex)
+            spDiscTypeSelect.Visibility = Visibility.Visible;
+            prgLoadingDisc.Visibility = Visibility.Collapsed;
+            grdWaitingForDisc.Visibility = Visibility.Visible;
+            grdSearchingForTitle.Visibility = Visibility.Collapsed;
+            grdSelectTitlesForRip.Visibility = Visibility.Collapsed;
+
+            discIsMovie = false;
+            discIsBlueRay = false;
+            discName = "";
+            selectedTitle = null;
+            matchingTitles = null;
+            selectedMovieDetails = null;
+            selectedTrack = null;
+            currentDisc = null;
+            fullPathToCompressedMkv = "";
+            fullPathToCompressedMkv = "";
+            if(timerDiscSelect != null)
             {
-                case 0:
-                    //goToWizard1();
-                    break;
-                case 1:
-                    goToWizard2();
-                    break;
-                case 2:
-                    goToWizard3();
-                    break;
+                timerDiscSelect.Stop();
             }
+            if (timerTrackSelect != null)
+            {
+                timerTrackSelect.Stop();
+            }
+           
+
         }
 
         private async void DiscReady()
         {
-            
+            ///auto proceed with movie if nothing happens?
+
+
+
             var gettingHighLevelDiscInfo = Task<string>.Factory.StartNew(() => getHighLevelDiscInfo());
-            btnCheckDrive.Visibility = Visibility.Hidden;
+            spDiscTypeSelect.Visibility = Visibility.Hidden;
             prgLoadingDisc.Visibility = Visibility.Visible;
 
             await gettingHighLevelDiscInfo;
 
             discName = gettingHighLevelDiscInfo.Result.ToString();
 
-            
 
-            Wizard.Visibility = Visibility.Visible;
-            Wizard.NextPageByIndex(0);
+            goToSelectTitle();
 
-            goToWizard1();
-                        
         }
 
         #endregion
         
 
         #region   ----------WIZARD 1-----------Disc Confirmation
-        private void goToWizard1()
+        private void goToSelectTitle()
         {
+            grdWaitingForDisc.Visibility = Visibility.Collapsed;
+            grdSearchingForTitle.Visibility = Visibility.Visible;
             getTMDBMovieResults();
             txtTitleSearch.Text = discName;
             grdMovies.ItemsSource = matchingTitles;
@@ -144,8 +279,7 @@ namespace dvdrip
                     if (timeDiscSelect == TimeSpan.Zero)
                     {
                         //go to next step.
-                        Wizard.NextPageByIndex(1);
-                        goToWizard2();
+                        goToTrackSelect();
                     }
                     timeDiscSelect = timeDiscSelect.Add(TimeSpan.FromSeconds(-1));
                 }, Application.Current.Dispatcher);
@@ -267,8 +401,16 @@ namespace dvdrip
 
         #region   ----------WIZARD 2-----------Track Selection
 
-        private async void goToWizard2()
+        private void btnGoToTrackSelect_Click(object sender, RoutedEventArgs e)
         {
+            goToTrackSelect();
+        }
+
+        private async void goToTrackSelect()
+        {
+            grdSearchingForTitle.Visibility = Visibility.Collapsed;
+            grdSelectTitlesForRip.Visibility = Visibility.Visible;
+
             timerDiscSelect.Stop();
             getDetailedMovieInfo(selectedTitle);
             lblSelectedMovieTitle.Content = selectedMovieDetails.title;
@@ -299,7 +441,8 @@ namespace dvdrip
             GetProbableTrack();
             grdTracks.ItemsSource = currentDisc.tracks;
             grdTracks.SelectedItem = selectedTrack;
-            Wizard.Visibility = Visibility.Visible;
+
+            
 
             //setup the automatic timer
             timeTrackSelect = TimeSpan.FromSeconds(30);
@@ -309,8 +452,7 @@ namespace dvdrip
                 if (timeTrackSelect == TimeSpan.Zero)
                 {
                     //go to next step.
-                    Wizard.NextPageByIndex(2);
-                    goToWizard3();
+                    addDiscToQueue();
                 }
                 timeTrackSelect = timeTrackSelect.Add(TimeSpan.FromSeconds(-1));
             }, Application.Current.Dispatcher);
@@ -462,16 +604,16 @@ namespace dvdrip
 
         #endregion
 
-        #region   ----------WIZARD 3-----------Track Selection
-        private async void goToWizard3()
+        #region   ----------WIZARD 3-----------ripping Disc
+        private void btnAddDiscToQueue_Click(object sender, RoutedEventArgs e)
+        {
+            addDiscToQueue();
+        }
+        
+        private async void addDiscToQueue()
         {
             timerTrackSelect.Stop();
-            prgCompress.Visibility = Visibility.Hidden;
-            prgRipToMkv.Visibility = Visibility.Visible;
-            lblRipMessage.Content = "Rip to MKV - In Progress";
-            lblCompressMessage.Content = "Compress with Handbrake - Waiting";
-
-
+           
             string fullPath = lblFullPath.Content.ToString();
 
             StringBuilder suggestedMovieTitle = new StringBuilder();
@@ -483,29 +625,38 @@ namespace dvdrip
 
            
             string selectedTrackIndex = grdTracks.SelectedIndex.ToString();
-            var rippingDisc = Task<string>.Factory.StartNew(() => RipDiscToMkv(fullPath, title, selectedTrackIndex));
+            QueuedItem toAdd = new QueuedItem(fullPath, title, selectedTrackIndex);
+            queuedItems.Add(toAdd);
+            waitingToRip.Add(toAdd);
+            StartOver();
+            /////////Start Ripping
+            //var rippingDisc = Task<string>.Factory.StartNew(() => RipDiscToMkv(fullPath, title, selectedTrackIndex));
+
+            //await rippingDisc;
+            /////////ripping complete
+            
+            ////check for errors
+            //string ripResult = rippingDisc.Result.ToString();
+
+            ///////////start compressing.
+            //var compressingMkv = Task<string>.Factory.StartNew(() => CompressWithHandbrake());
 
 
-            await rippingDisc;
-            //check for errors
-            string ripResult = rippingDisc.Result.ToString();
-
-            prgRipToMkv.Visibility = Visibility.Hidden;
-            prgCompress.Visibility = Visibility.Visible;
-            lblRipMessage.Content = "Rip to MKV - Complete";
-            lblCompressMessage.Content = "Compress with Handbrake - In Progress";
-            var compressingMkv = Task<string>.Factory.StartNew(() => CompressWithHandbrake());
+            //await compressingMkv;
 
 
-            await compressingMkv;
-            string compressResult = compressingMkv.Result.ToString();
+            ////////compressing complete
+            //string compressResult = compressingMkv.Result.ToString();
         }
 
-        private String RipDiscToMkv(string fullPath, string title, string selectedTrackIndex)
+
+        
+
+        private String RipDiscToMkv(QueuedItem itemToRip)
         {
 
             ////remove the directory if it exists
-            string pathToCreateFiles = System.IO.Path.GetFullPath(fullPath);
+            string pathToCreateFiles = System.IO.Path.GetFullPath(itemToRip.fullPath);
 
             try { Directory.Delete(pathToCreateFiles, true); }
             catch (Exception e) { }
@@ -522,7 +673,7 @@ namespace dvdrip
 
             p.StartInfo.RedirectStandardOutput = true;
             p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon.exe";
-            p.StartInfo.Arguments = "mkv disc:0 " + selectedTrackIndex + " \"" + fullPath + "\"";
+            p.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
             p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             p.StartInfo.CreateNoWindow = true;
             p.Start();
@@ -536,8 +687,8 @@ namespace dvdrip
             {
                 string pathToRip = Directory.GetFiles(pathToCreateFiles)[0];
                 int indexofslash = pathToRip.LastIndexOf("\\");
-                fullPathToRippedMkv = System.IO.Path.Combine(fullPath, title) + "_rip.mkv";
-                fullPathToCompressedMkv = System.IO.Path.Combine(fullPath, title) + "_compressed.mkv";
+                itemToRip.pathToRip = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_rip.mkv";
+                itemToRip.pathToCompression = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_compressed.mkv";
                 System.IO.File.Move(pathToRip, fullPathToRippedMkv);
             }
             catch (Exception e) { }
@@ -547,7 +698,7 @@ namespace dvdrip
             return "";
         }
 
-        private String CompressWithHandbrake()
+        private String CompressWithHandbrake(QueuedItem item)
         {
 
             // Start the child process.
@@ -557,7 +708,7 @@ namespace dvdrip
 
             p.StartInfo.RedirectStandardOutput = true;
             p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Handbrake\\HandBrakeCLI.exe";
-            p.StartInfo.Arguments = "-e x264  -q 20.0 -a 1 -E ffaac,copy:ac3 -B 160 -6 dpl2 -R Auto -D 0.0 --audio-copy-mask aac,ac3,dtshd,dts,mp3 --audio-fallback ffac3 -f av_mkv --strict-anamorphic --denoise medium -m --x264-preset veryslow --x264-tune film --h264-profile high --h264-level 3.1 --subtitle scan --subtitle-forced --subtitle-burned -i \"" + fullPathToRippedMkv + "\" -o \"" + fullPathToCompressedMkv+ "\"";
+            p.StartInfo.Arguments = "-e x264  -q 20.0 -a 1 -E ffaac,copy:ac3 -B 160 -6 dpl2 -R Auto -D 0.0 --audio-copy-mask aac,ac3,dtshd,dts,mp3 --audio-fallback ffac3 -f av_mkv --strict-anamorphic --denoise medium -m --x264-preset veryslow --x264-tune film --h264-profile high --h264-level 3.1 --subtitle scan --subtitle-forced --subtitle-burned -i \"" + item.pathToRip + "\" -o \"" + item.pathToCompression+ "\"";
             p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             p.StartInfo.CreateNoWindow = true;
             p.Start();
@@ -637,6 +788,120 @@ namespace dvdrip
         {
             timerDiscSelect.Stop();
         }
+
+
+        
+        
+    }
+
+    public class rippingDataTemplateSelector : DataTemplateSelector
+    {
+        public DataTemplate progressBarDataTemplate { get; set; }
+        public DataTemplate completeDataTemplate { get; set; }
+        public DataTemplate waitingTextDataTemplate { get; set; }
+
+        public override DataTemplate SelectTemplate(object item, DependencyObject container)
+        {
+            QueuedItem thisItem = (QueuedItem)item;
+            if (thisItem.ripping)
+            {
+                return progressBarDataTemplate;
+            }
+            else
+            {
+                if(thisItem.ripped == true)
+                {
+                    return completeDataTemplate;
+                }
+                else
+                {
+                    return waitingTextDataTemplate;
+                }
+            }
+            
+
+        }
+    }
+
+    public class copyingDataTemplateSelector : DataTemplateSelector
+    {
+        public DataTemplate progressBarDataTemplate { get; set; }
+        public DataTemplate completeDataTemplate { get; set; }
+        public DataTemplate waitingTextDataTemplate { get; set; }
+
+        public override DataTemplate SelectTemplate(object item, DependencyObject container)
+        {
+            QueuedItem thisItem = (QueuedItem)item;
+            if (thisItem.copying)
+            {
+                return progressBarDataTemplate;
+            }
+            else
+            {
+                if (thisItem.copied == true)
+                {
+                    return completeDataTemplate;
+                }
+                else
+                {
+                    return waitingTextDataTemplate;
+                }
+            }
+
+
+        }
+    }
+
+    public class compressingDataTemplateSelector : DataTemplateSelector
+    {
+        public DataTemplate progressBarDataTemplate { get; set; }
+        public DataTemplate completeDataTemplate { get; set; }
+        public DataTemplate waitingTextDataTemplate { get; set; }
+
+        public override DataTemplate SelectTemplate(object item, DependencyObject container)
+        {
+            QueuedItem thisItem = (QueuedItem)item;
+            if (thisItem.compressing)
+            {
+                return progressBarDataTemplate;
+            }
+            else
+            {
+                if (thisItem.compressed == true)
+                {
+                    return completeDataTemplate;
+                }
+                else
+                {
+                    return waitingTextDataTemplate;
+                }
+            }
+
+
+        }
+    }
+
+    public class QueuedItem
+    {
+        public QueuedItem(String _fullPath, String _title, String _selectedTrackIndex)
+        {
+            title = _title;
+            fullPath = _fullPath;
+            selectedTrackIndex = _selectedTrackIndex;
+        }
+
+        public String title { get; set; }
+        public Boolean ripping { get; set; }
+        public Boolean ripped { get; set; }
+        public Boolean compressing { get; set; }
+        public Boolean compressed { get; set; }
+        public Boolean copying { get; set; }
+        public Boolean copied { get; set; }
+        public Boolean removed { get; set; }
+        public String fullPath { get; set; }
+        public String selectedTrackIndex { get; set; }
+        public String pathToRip { get; set; }
+        public String pathToCompression { get; set; }
     }
 
     public class Disc
