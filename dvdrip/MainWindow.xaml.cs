@@ -35,19 +35,33 @@ namespace dvdrip
     {
         #region Local Variables
         public IntPtr windowHandle;
-        public Boolean discIsBlueRay;
+        public bool discIsBlueRay;
         //dependency property declaration
-        public Boolean discIsTv
+        private bool _discIsTv;
+        public bool discIsTv
         {
-            get { return (Boolean)GetValue(discIsTvProperty); }
-            set { SetValue(discIsTvProperty, value); }
+            get { return _discIsTv; }
+            set
+            {
+                _discIsTv = value;
+                switch (value)
+                {
+                    case true:
+                        tabSelectMovieTrack.Visibility = Visibility.Collapsed;
+                        tabSelectEpisodes.Visibility = Visibility.Visible;
+
+                        break;
+                    default:
+                        tabSelectMovieTrack.Visibility = Visibility.Visible;
+                        tabSelectEpisodes.Visibility = Visibility.Collapsed;
+                        break;
+                }
+       
+               
+            }
         }
 
-        // Using a DependencyProperty as the backing store for discIsTv.  This enables animation, styling, binding, etc...
-        public static readonly DependencyProperty discIsTvProperty =
-            DependencyProperty.Register("discIsTv", typeof(Boolean), typeof(MainWindow), new PropertyMetadata(false));
-        //end dependency property declaration
-
+       
         public string discName;
         const string tmdbApiKey = "1abe04137ccd4fa521cb5f8e337b9418";
         const string tmdbImageApiUrl = "http://image.tmdb.org/t/p/w185"; // /nuUKcfRYjifwjIJPN1J6kIGcSvD.jpg"
@@ -937,7 +951,33 @@ namespace dvdrip
 
         #endregion
     }
+    #region Xaml style support classes 
+    [ValueConversion(typeof(object), typeof(string))]
+    public class TabSizeConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return ((double)value + 25).ToString() + ", 26";
+        }
 
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return null;
+        }
+    }
+    [ValueConversion(typeof(object), typeof(string))]
+    public class TabSizeZeroConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return ((double)value).ToString() + ", 0";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            return null;
+        }
+    }
     public class rippingDataTemplateSelector : DataTemplateSelector
     {
         public DataTemplate progressBarDataTemplate { get; set; }
@@ -966,7 +1006,6 @@ namespace dvdrip
 
         }
     }
-
     public class copyingDataTemplateSelector : DataTemplateSelector
     {
         public DataTemplate progressBarDataTemplate { get; set; }
@@ -995,7 +1034,6 @@ namespace dvdrip
 
         }
     }
-
     public class compressingDataTemplateSelector : DataTemplateSelector
     {
         public DataTemplate progressBarDataTemplate { get; set; }
@@ -1024,6 +1062,7 @@ namespace dvdrip
 
         }
     }
+    #endregion
 
     public class QueuedItem
     {
@@ -1051,7 +1090,6 @@ namespace dvdrip
         public int tvEpisode { get; set; }
         public string tvShowTitle { get; set; }
     }
-
     public class Disc
     {
         public Disc()
@@ -1068,7 +1106,6 @@ namespace dvdrip
         public string length { get; set; }
         public float size { get; set; }
     }
-
     public class tmdbSearchResult
     {
         public int page { get; set; }
@@ -1104,7 +1141,6 @@ namespace dvdrip
         public string overview { get; set; }
         public string release_date { get; set; }
     }
-
     public class tmdbMovieDetails
     {
         public bool adult { get; set; }
@@ -1122,7 +1158,6 @@ namespace dvdrip
         public string tagline { get; set; }
         public string title { get; set; }
     }
-
     class EjectMedia
     {
         // Constants used in DLL methods

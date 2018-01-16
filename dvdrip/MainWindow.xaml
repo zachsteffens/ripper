@@ -6,12 +6,228 @@
         xmlns:aw="clr-namespace:AvalonWizard;assembly=AvalonWizard"
         xmlns:local="clr-namespace:dvdrip"
         mc:Ignorable="d"
-        Title="DVD Backup" Height="850" Width="1300">
+        Title="DVD Backup" Height="870" Width="810">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Resources.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <local:TabSizeZeroConverter x:Key="tabSizeZeroConverter"/>
+            <local:TabSizeConverter x:Key="tabSizeConverter"/>
+            <Style x:Key="TabItemFocusVisual">
+                <Setter Property="Control.Template">
+                    <Setter.Value>
+                        <ControlTemplate>
+                            <Rectangle Margin="3,3,3,1" SnapsToDevicePixels="true" Stroke="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}" StrokeThickness="1" StrokeDashArray="1 2"/>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <SolidColorBrush x:Key="TabControlNormalBorderBrush" Color="#8C8E94"/>
+            <LinearGradientBrush x:Key="ButtonNormalBackground" EndPoint="0,1" StartPoint="0,0">
+                <GradientStop Color="#F3F3F3" Offset="0"/>
+                <GradientStop Color="#EBEBEB" Offset="0.5"/>
+                <GradientStop Color="#DDDDDD" Offset="0.5"/>
+                <GradientStop Color="#CDCDCD" Offset="1"/>
+            </LinearGradientBrush>
+            <LinearGradientBrush x:Key="TabItemHotBackground" EndPoint="0,1" StartPoint="0,0">
+                <GradientStop Color="#EAF6FD" Offset="0.15"/>
+                <GradientStop Color="#D9F0FC" Offset=".5"/>
+                <GradientStop Color="#BEE6FD" Offset=".5"/>
+                <GradientStop Color="#A7D9F5" Offset="1"/>
+            </LinearGradientBrush>
+            <SolidColorBrush x:Key="TabItemHotBorderBrush" Color="#3C7FB1"/>
+            <SolidColorBrush x:Key="TabItemDisabledBackground" Color="#F4F4F4"/>
+            <SolidColorBrush x:Key="TabItemDisabledBorderBrush" Color="#FFC9C7BA"/>
+            <LinearGradientBrush x:Key="TabItemSelectedBackground" EndPoint="0.5,1" StartPoint="0.5,0">
+                <GradientStop Color="#FF639ABF" Offset="0"/>
+                <GradientStop Color="#FF639ABF" Offset="0.501"/>
+                <GradientStop Color="#FF297A9E" Offset="0.502"/>
+                <GradientStop Color="#FF297A9E" Offset="1"/>
+            </LinearGradientBrush>
+            <Style TargetType="{x:Type TabItem}">
+                <Setter Property="FocusVisualStyle" Value="{StaticResource TabItemFocusVisual}"/>
+                <Setter Property="Foreground" Value="White"/>
+                <Setter Property="Padding" Value="6,1,6,1"/>
+                <Setter Property="BorderBrush" Value="{StaticResource TabControlNormalBorderBrush}"/>
+                <Setter Property="Background" Value="{StaticResource ButtonNormalBackground}"/>
+                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+            </Style>
+            <ControlTemplate x:Key="TabItemControlTemplate1" TargetType="{x:Type TabItem}">
+                <Canvas Width="{Binding Path=ActualWidth,ElementName=Bd}" Margin="-1,0,-10,0" Height="26" >
+                    <Path x:Name="Bd" Stroke="#639ABF"   StrokeThickness="1.5">
+                        <Path.Fill>
+                            <LinearGradientBrush EndPoint="0.5,1" StartPoint="0.5,0">
+                                <GradientStop Color="#FF0A5480"/>
+                                <GradientStop Color="#FF093452" Offset="1"/>
+                                <GradientStop Color="#FF0A5480" Offset="0.511"/>
+                                <GradientStop Color="#FF09456B" Offset="0.511"/>
+                            </LinearGradientBrush>
+                        </Path.Fill>
+                        <Path.Data>
+                            <PathGeometry>
+                                <PathGeometry.Figures>
+                                    <PathFigureCollection>
+                                        <PathFigure IsClosed="True" StartPoint="0,0">
+                                            <PathFigure.Segments>
+                                                <PathSegmentCollection>
+                                                    <LineSegment Point="{Binding Path=ActualWidth,ElementName=Content,Converter={StaticResource tabSizeZeroConverter}}" />
+                                                    <LineSegment Point="{Binding Path=ActualWidth,ElementName=Content,Converter={StaticResource tabSizeConverter}}" />
+                                                    <LineSegment Point="0,26" IsStroked="False"/>
+                                                </PathSegmentCollection>
+                                            </PathFigure.Segments>
+                                        </PathFigure>
+                                    </PathFigureCollection>
+                                </PathGeometry.Figures>
+                            </PathGeometry>
+                        </Path.Data>
+                    </Path>
+                    <ContentPresenter x:Name="Content" Margin="4,5" ContentSource="Header" HorizontalAlignment="{Binding HorizontalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}" RecognizesAccessKey="True" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" VerticalAlignment="{Binding VerticalContentAlignment, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}" OpacityMask="Black"/>
+                </Canvas>
+                <ControlTemplate.Triggers>
+                    <Trigger Property="IsMouseOver" Value="True">
+                        <Setter Property="Foreground" Value="Black"/>
+                        <Setter Property="Fill" TargetName="Bd">
+                            <Setter.Value>
+                                <LinearGradientBrush EndPoint="0,1" StartPoint="0,0">
+                                    <GradientStop Color="#FFEAF6FD" Offset="0.15"/>
+                                    <GradientStop Color="#FFD9F0FC" Offset="0.5"/>
+                                    <GradientStop Color="#FFBEE6FD" Offset="0.5"/>
+                                    <GradientStop Color="#FFA7D9F5" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Setter.Value>
+                        </Setter>
+
+                    </Trigger>
+                    <Trigger Property="IsSelected" Value="True">
+                        <Setter Property="Panel.ZIndex" Value="1"/>
+                        <Setter Property="Fill" TargetName="Bd" Value="{DynamicResource TabItemSelectedBackground}"/>
+                    </Trigger>
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions>
+                            <Condition Property="IsSelected" Value="False"/>
+                            <Condition Property="IsMouseOver" Value="True"/>
+                        </MultiTrigger.Conditions>
+                        <Setter Property="Stroke" TargetName="Bd" Value="#FF3C7FB1"/>
+                    </MultiTrigger>
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions>
+                            <Condition Property="IsSelected" Value="True"/>
+                            <Condition Property="IsMouseOver" Value="True"/>
+                        </MultiTrigger.Conditions>
+                        <Setter Property="Foreground" Value="White"/>
+                    </MultiTrigger>
+                    <Trigger Property="TabStripPlacement" Value="Bottom">
+                        <Setter Property="StrokeThickness" TargetName="Bd" Value="1,0,1,1"/>
+                    </Trigger>
+                    <Trigger Property="TabStripPlacement" Value="Left">
+                        <Setter Property="StrokeThickness" TargetName="Bd" Value="1,1,0,1"/>
+                    </Trigger>
+                    <Trigger Property="TabStripPlacement" Value="Right">
+                        <Setter Property="StrokeThickness" TargetName="Bd" Value="0,1,1,1"/>
+                    </Trigger>
+
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions>
+                            <Condition Property="IsSelected" Value="True"/>
+                            <Condition Property="TabStripPlacement" Value="Bottom"/>
+                        </MultiTrigger.Conditions>
+                        <Setter Property="Margin" Value="-2,-1,-2,-2"/>
+                        <Setter Property="Margin" TargetName="Content" Value="0,1,0,0"/>
+                    </MultiTrigger>
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions>
+                            <Condition Property="IsSelected" Value="True"/>
+                            <Condition Property="TabStripPlacement" Value="Left"/>
+                        </MultiTrigger.Conditions>
+                        <Setter Property="Margin" Value="-2,-2,-1,-2"/>
+                        <Setter Property="Margin" TargetName="Content" Value="0,0,1,0"/>
+                    </MultiTrigger>
+                    <MultiTrigger>
+                        <MultiTrigger.Conditions>
+                            <Condition Property="IsSelected" Value="True"/>
+                            <Condition Property="TabStripPlacement" Value="Right"/>
+                        </MultiTrigger.Conditions>
+                        <Setter Property="Margin" Value="-1,-2,-2,-2"/>
+                        <Setter Property="Margin" TargetName="Content" Value="1,0,0,0"/>
+                    </MultiTrigger>
+                    <Trigger Property="IsEnabled" Value="False">
+                        <Setter Property="Fill" TargetName="Bd" Value="{DynamicResource TabItemSelectedBackground}"/>
+                        <Setter Property="Stroke" TargetName="Bd" Value="#FFC9C7BA"/>
+                        <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                    </Trigger>
+                </ControlTemplate.Triggers>
+            </ControlTemplate>
+            <Style TargetType="{x:Type TabControl}">
+                <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.ControlTextBrushKey}}"/>
+                <Setter Property="Padding" Value="0"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="BorderBrush" Value="{StaticResource TabControlNormalBorderBrush}"/>
+                <Setter Property="Background" Value="#F9F9F9"/>
+                <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                <Setter Property="VerticalContentAlignment" Value="Center"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="{x:Type TabControl}">
+                            <Grid ClipToBounds="true" SnapsToDevicePixels="true" KeyboardNavigation.TabNavigation="Local">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition x:Name="ColumnDefinition0"/>
+                                    <ColumnDefinition x:Name="ColumnDefinition1" Width="0"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition x:Name="RowDefinition0" Height="Auto"/>
+                                    <RowDefinition x:Name="RowDefinition1" Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border BorderBrush="#FF297A9E" BorderThickness="0,0,0,4">
+                                    <TabPanel x:Name="HeaderPanel" Grid.Column="0" IsItemsHost="true" Margin="2,2,2,0" Grid.Row="0" KeyboardNavigation.TabIndex="1" Panel.ZIndex="1"/>
+                                </Border>
+                                <Border x:Name="ContentPanel" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Background="{TemplateBinding Background}" Grid.Column="0" KeyboardNavigation.DirectionalNavigation="Contained" Grid.Row="1" KeyboardNavigation.TabIndex="2" KeyboardNavigation.TabNavigation="Local">
+                                    <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent" Margin="{TemplateBinding Padding}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                                </Border>
+                            </Grid>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="TabStripPlacement" Value="Bottom">
+                                    <Setter Property="Grid.Row" TargetName="HeaderPanel" Value="1"/>
+                                    <Setter Property="Grid.Row" TargetName="ContentPanel" Value="0"/>
+                                    <Setter Property="Height" TargetName="RowDefinition0" Value="*"/>
+                                    <Setter Property="Height" TargetName="RowDefinition1" Value="Auto"/>
+                                    <Setter Property="Margin" TargetName="HeaderPanel" Value="2,0,2,2"/>
+                                </Trigger>
+                                <Trigger Property="TabStripPlacement" Value="Left">
+                                    <Setter Property="Grid.Row" TargetName="HeaderPanel" Value="0"/>
+                                    <Setter Property="Grid.Row" TargetName="ContentPanel" Value="0"/>
+                                    <Setter Property="Grid.Column" TargetName="HeaderPanel" Value="0"/>
+                                    <Setter Property="Grid.Column" TargetName="ContentPanel" Value="1"/>
+                                    <Setter Property="Width" TargetName="ColumnDefinition0" Value="Auto"/>
+                                    <Setter Property="Width" TargetName="ColumnDefinition1" Value="*"/>
+                                    <Setter Property="Height" TargetName="RowDefinition0" Value="*"/>
+                                    <Setter Property="Height" TargetName="RowDefinition1" Value="0"/>
+                                    <Setter Property="Margin" TargetName="HeaderPanel" Value="2,2,0,2"/>
+                                </Trigger>
+                                <Trigger Property="TabStripPlacement" Value="Right">
+                                    <Setter Property="Grid.Row" TargetName="HeaderPanel" Value="0"/>
+                                    <Setter Property="Grid.Row" TargetName="ContentPanel" Value="0"/>
+                                    <Setter Property="Grid.Column" TargetName="HeaderPanel" Value="1"/>
+                                    <Setter Property="Grid.Column" TargetName="ContentPanel" Value="0"/>
+                                    <Setter Property="Width" TargetName="ColumnDefinition0" Value="*"/>
+                                    <Setter Property="Width" TargetName="ColumnDefinition1" Value="Auto"/>
+                                    <Setter Property="Height" TargetName="RowDefinition0" Value="*"/>
+                                    <Setter Property="Height" TargetName="RowDefinition1" Value="0"/>
+                                    <Setter Property="Margin" TargetName="HeaderPanel" Value="0,2,2,2"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="false">
+                                    <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            <Style x:Key="tabContentGrid" TargetType="{x:Type Grid}">
+                <Setter Property="Margin" Value="-5"/>
+            </Style>
 
             <DataTemplate x:Key="progressBarDataTemplate">
                 <ProgressBar IsIndeterminate="True" Height="10" Width="60" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -41,7 +257,6 @@
         <DockPanel LastChildFill="True">
             <!--Right Sidebar-->
             <StackPanel Orientation="Vertical" DockPanel.Dock="Bottom" Height="200" >
-                <Separator Height="10px"></Separator>
                 <StackPanel Orientation="Horizontal" Margin="10,10,0,0">
                     <Label Content="In Progress" FontWeight="ExtraBold"/>
                     <Button x:Name="btnClearCompleted" Content="Clear Completed" Width="100"/>
@@ -61,18 +276,15 @@
                 </Grid>
             </StackPanel>
             <!--Left Content-->
-            <Grid>
-                <Grid Name="grdWaitingForDisc" Visibility="Collapsed">
-                    <Button x:Name="btnCheckDriveMovie" Content="Go" Width="91" Click="btnCheckDriveMovie_Click" Margin="0,0,0,20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    <ProgressBar Name="prgLoadingDisc" IsIndeterminate="true" Height="10" Visibility="Collapsed" VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
-                </Grid>
-                <Grid Name="grdSearchingForTitle" Background="White" Margin="0,10,0,0" Visibility="Visible">
+            <TabControl x:Name="tabControlMain" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinWidth="790" MinHeight="590" Margin="5">
+                <TabItem x:Name="tabSearchForTitle" Header="Select Title"  Template="{DynamicResource TabItemControlTemplate1}" FontSize="14">
                     <StackPanel Orientation="Vertical">
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                            <TextBox Name="txtTitleSearch" Width="400" Margin="10,0,0,10" GotFocus="txtTitleSearch_GotFocus"></TextBox>
-                            <Button Name="btnTitleSearch" Content="Search Again" Width="100" Margin="10,0,0,10" Click="btnTitleSearch_Click"></Button>
+                            <Button x:Name="btnCheckDriveMovie" Content="&#x21ba;" ToolTip="Read Name From Disc" Width="25" Height="25" Padding="0,-6,0,0" FontWeight="Bold" FontSize="18" Margin="10,0,0,10" Click="btnCheckDriveMovie_Click"/>
+                            <TextBox Name="txtTitleSearch" Width="370" Margin="5,0,0,10" GotFocus="txtTitleSearch_GotFocus"></TextBox>
+                            <Button Name="btnTitleSearch" Content="Search TMDB" Width="100" Margin="10,0,0,10" Click="btnTitleSearch_Click"></Button>
                             <CheckBox Name="chkIsTV" Margin="15,5,0,0"
-                                      IsChecked="{Binding ElementName=MainWindow, Path=discIsTv}">Is disc a TV Show?</CheckBox>
+                                      IsChecked="{Binding discIsTv, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">Is disc a TV Show?</CheckBox>
                         </StackPanel>
                         <DockPanel Height="512">
                             <ListView DockPanel.Dock="Left" x:Name="grdMovies" Margin="10,0,0,0"
@@ -92,19 +304,15 @@
                                             DisplayMemberBinding="{Binding Path=release_date}"/>
                                     </GridView>
                                 </ListView.View>
-
-
-
                             </ListView>
                             <StackPanel DockPanel.Dock="Right"
                                     Name="spSelectedItem"
                                     Orientation="Vertical">
                                 <Label FontWeight="Bold" Content="Title:"></Label>
-                                <Label x:Name="lblSelectedTitle" Content="lblSelectedTitle"></Label>
+                                <Label x:Name="lblSelectedTitle" Content=""></Label>
                                 <Label FontWeight="Bold" Content="Description:"></Label>
                                 <TextBlock x:Name="lblSelectedDescription" TextWrapping="Wrap"
-                                       Text="lblSelectedDescription"
-                                       MaxWidth="560"></TextBlock>
+                                       MaxWidth="560" Foreground="Black"></TextBlock>
                                 <Image Name="imgSelectedItemPoster" Width="185" Height="278"/>
                             </StackPanel>
                         </DockPanel>
@@ -116,68 +324,82 @@
                                 <Button x:Name="btnGoToTrackSelect" Content="Next" Width="91" Margin="10,0,10,0" Click="btnGoToTrackSelect_Click"/>
                             </StackPanel>
                         </DockPanel>
-
-
                     </StackPanel>
-                </Grid>
-                <Grid Name="grdSelectTitlesForRip" Background="White" Visibility="Collapsed">
-                    <StackPanel Orientation="Vertical" Margin="0,22,0,31">
-                        <Label FontSize="15" FontWeight="Bold" Content="Selected Movie Details" BorderBrush="Black" BorderThickness="0,0,0 1"/>
-                        <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
-                            <Label FontStyle="Italic" FontWeight="Bold" Content="Title:"/>
-                            <Label Name="lblSelectedMovieTitle" Content=""/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
-                            <Label FontStyle="Italic" FontWeight="Bold" Content="Runtime:"/>
-                            <Label Name="lblSelectedMovieLength" Content=""/>
-                        </StackPanel>
-                        <Separator Height="3" BorderBrush="Black" BorderThickness="0,0,0 1" />
-                        <StackPanel Orientation="Horizontal">
-                            <StackPanel Name="spReadingTrackInfo" Orientation="Vertical" Width="848" Visibility="Collapsed">
-                                <Label HorizontalAlignment="Center" FontSize="15" FontWeight="Bold"  Content="Reading track info from disc"/>
-                                <ProgressBar Name="prgLoadingTrackInfo" IsIndeterminate="true" Height="10" VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
+                </TabItem>
+                <TabItem x:Name="tabSelectMovieTrack"  Header="Select Track" Template="{DynamicResource TabItemControlTemplate1}" FontSize="14">
+                    <Grid Name="grdSelectTitlesForRip">
+                        <StackPanel Orientation="Vertical" Margin="0,22,0,31">
+                            <Label FontSize="15" FontWeight="Bold" Content="Selected Movie Details" BorderBrush="Black" BorderThickness="0,0,0 1"/>
+                            <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
+                                <Label FontStyle="Italic" FontWeight="Bold" Content="Title:"/>
+                                <Label Name="lblSelectedMovieTitle" Content=""/>
                             </StackPanel>
-                            <DockPanel Name="dockTrackInfo">
-                                <ListView Name="grdTracks" 
+                            <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
+                                <Label FontStyle="Italic" FontWeight="Bold" Content="Runtime:"/>
+                                <Label Name="lblSelectedMovieLength" Content=""/>
+                            </StackPanel>
+                            <Separator Height="3" BorderBrush="Black" BorderThickness="0,0,0 1" />
+                            <StackPanel Orientation="Horizontal">
+                                <StackPanel Name="spReadingTrackInfo" Orientation="Vertical" Width="848" Visibility="Collapsed">
+                                    <Label HorizontalAlignment="Center" FontSize="15" FontWeight="Bold"  Content="Reading track info from disc"/>
+                                    <ProgressBar Name="prgLoadingTrackInfo" IsIndeterminate="true" Height="10" VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                                <DockPanel Name="dockTrackInfo">
+                                    <ListView Name="grdTracks" 
                                     DockPanel.Dock="Left"
                                     Margin="10,0,0,0" HorizontalAlignment="Left"
                                         ItemsSource="{Binding}"
                                         Width="400" SelectionChanged="grdTracks_SelectionChanged">
-                                    <ListView.ItemContainerStyle>
-                                        <Style TargetType="ListViewItem">
-                                            <Setter Property="IsSelected" Value="{Binding selectedTrack}"/>
-                                        </Style>
-                                    </ListView.ItemContainerStyle>
-                                    <ListView.View>
-                                        <GridView>
-                                            <GridViewColumn Header="Size(MB)"
+                                        <ListView.ItemContainerStyle>
+                                            <Style TargetType="ListViewItem">
+                                                <Setter Property="IsSelected" Value="{Binding selectedTrack}"/>
+                                            </Style>
+                                        </ListView.ItemContainerStyle>
+                                        <ListView.View>
+                                            <GridView>
+                                                <GridViewColumn Header="Size(MB)"
                                                 DisplayMemberBinding="{Binding Path=size}"/>
-                                            <GridViewColumn Header="Length"
+                                                <GridViewColumn Header="Length"
                                                 DisplayMemberBinding="{Binding Path=length}"/>
-                                        </GridView>
-                                    </ListView.View>
-                                </ListView>
-                                <StackPanel Margin="10,0,0,0" Orientation="Vertical" DockPanel.Dock="Right">
-                                    <Label Content="Path to store ripped video:" FontWeight="Bold"></Label>
-                                    <StackPanel Orientation="Horizontal">
-                                        <TextBox Name="txtRipLocation" Width="300" Text="c:\somewhere" IsEnabled="False"></TextBox>
-                                        <Button Padding="5,0,5,0" Name="btnBrowseRipLocation" Content="browse" Click="btnBrowseRipLocation_Click"></Button>
-                                    </StackPanel>
-                                    <Label Name="lblFullPath" Margin="10,0,0,0"  FontStyle="Italic" Content="*c:\somewhere"></Label>
+                                            </GridView>
+                                        </ListView.View>
+                                    </ListView>
+                                    <StackPanel Margin="10,0,0,0" Orientation="Vertical" DockPanel.Dock="Right">
+                                        <Label Content="Path to store ripped video:" FontWeight="Bold"></Label>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBox Name="txtRipLocation" Width="300" Text="c:\somewhere" IsEnabled="False"></TextBox>
+                                            <Button Padding="5,0,5,0" Name="btnBrowseRipLocation" Content="browse" Click="btnBrowseRipLocation_Click"></Button>
+                                        </StackPanel>
+                                        <Label Name="lblFullPath" Margin="10,0,0,0"  FontStyle="Italic" Content="*c:\somewhere"></Label>
 
-                                </StackPanel>
-                            </DockPanel>
+                                    </StackPanel>
+                                </DockPanel>
+                            </StackPanel>
                         </StackPanel>
-                    </StackPanel>
-                    <DockPanel LastChildFill="True" VerticalAlignment="Bottom" Margin="0,0,0,10">
-                        <Button x:Name="btnStartOver2" Content="Start Over" Width="91" Margin="10,0,0,0"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                            <Label Content="Auto Continue in:"/>
-                            <Label Name="lblTrackSelectCountDown" Width="80"  Content=""/>
-                            <Button x:Name="btnAddDiscToQueue" Content="Add To Queue" Width="91" Margin="10,0,10,0" Click="btnAddDiscToQueue_Click"/>
-                        </StackPanel>
-                    </DockPanel>
+                        <DockPanel LastChildFill="True" VerticalAlignment="Bottom" Margin="0,0,0,10">
+                            <Button x:Name="btnStartOver2" Content="Start Over" Width="91" Margin="10,0,0,0"/>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                                <Label Content="Auto Continue in:"/>
+                                <Label Name="lblTrackSelectCountDown" Width="80"  Content=""/>
+                                <Button x:Name="btnAddDiscToQueue" Content="Add To Queue" Width="91" Margin="10,0,10,0" Click="btnAddDiscToQueue_Click"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Grid>
+                </TabItem>
+                <TabItem x:Name="tabSelectEpisodes"  Header="Select Episodes" Template="{DynamicResource TabItemControlTemplate1}" FontSize="14">
+                    
+                </TabItem>
+            </TabControl>
+
+            <Grid>
+                <Grid Name="grdWaitingForDisc" Visibility="Collapsed">
+                   
+                    <ProgressBar Name="prgLoadingDisc" IsIndeterminate="true" Height="10" Visibility="Collapsed" VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
                 </Grid>
+                <Grid Name="grdSearchingForTitle" Background="White" Margin="0,10,0,0" Visibility="Visible">
+                   
+                </Grid>
+                
             </Grid>
         </DockPanel>
         
