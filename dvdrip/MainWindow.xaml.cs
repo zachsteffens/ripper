@@ -25,6 +25,7 @@ using System.Collections.ObjectModel;
 using Microsoft.WindowsAPICodePack.Dialogs;
 using System.Windows.Threading;
 using System.Runtime.InteropServices;
+using System.Globalization;
 
 namespace dvdrip
 {
@@ -35,7 +36,18 @@ namespace dvdrip
         #region Local Variables
         public IntPtr windowHandle;
         public Boolean discIsBlueRay;
-        public Boolean discIsMovie;
+        //dependency property declaration
+        public Boolean discIsTv
+        {
+            get { return (Boolean)GetValue(discIsTvProperty); }
+            set { SetValue(discIsTvProperty, value); }
+        }
+
+        // Using a DependencyProperty as the backing store for discIsTv.  This enables animation, styling, binding, etc...
+        public static readonly DependencyProperty discIsTvProperty =
+            DependencyProperty.Register("discIsTv", typeof(Boolean), typeof(MainWindow), new PropertyMetadata(false));
+        //end dependency property declaration
+
         public string discName;
         const string tmdbApiKey = "1abe04137ccd4fa521cb5f8e337b9418";
         const string tmdbImageApiUrl = "http://image.tmdb.org/t/p/w185"; // /nuUKcfRYjifwjIJPN1J6kIGcSvD.jpg"
@@ -363,24 +375,15 @@ namespace dvdrip
             //testCopy.ripped = true;
             //queuedItems.Add(testCopy);
             //waitingToCopy.Add(testCopy);
+            discIsTv = false;
 
-            discIsMovie = true;
             foreach (var drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.CDRom))
             {
                 if (drive.IsReady)
                     DiscReady();
             }
         }
-        private void btnCheckDriveTv_Click(object sender, RoutedEventArgs e)
-        {
-            discIsMovie = false;
-            foreach (var drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.CDRom))
-            {
-                if (drive.IsReady)
-                    DiscReady();
-            }
-        }
-
+        
         private void DiscRemoved()
         {
             StartOver();
@@ -388,13 +391,13 @@ namespace dvdrip
 
         private void StartOver()
         {
-            spDiscTypeSelect.Visibility = Visibility.Visible;
+            btnCheckDriveMovie.Visibility = Visibility.Visible;
             prgLoadingDisc.Visibility = Visibility.Collapsed;
             grdWaitingForDisc.Visibility = Visibility.Visible;
             grdSearchingForTitle.Visibility = Visibility.Collapsed;
             grdSelectTitlesForRip.Visibility = Visibility.Collapsed;
 
-            discIsMovie = false;
+            discIsTv = false;
             discIsBlueRay = false;
             discName = "";
             selectedTitle = null;
@@ -423,7 +426,7 @@ namespace dvdrip
 
 
             var gettingHighLevelDiscInfo = Task<string>.Factory.StartNew(() => getHighLevelDiscInfo());
-            spDiscTypeSelect.Visibility = Visibility.Hidden;
+            btnCheckDriveMovie.Visibility = Visibility.Hidden;
             prgLoadingDisc.Visibility = Visibility.Visible;
 
             await gettingHighLevelDiscInfo;
@@ -917,6 +920,24 @@ namespace dvdrip
         
     }
 
+    public class ColumnViewportConverter : IValueConverter
+    {
+        #region IValueConverter Members
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            double columnHeight = System.Convert.ToDouble(value);
+            return new Rect(0, 0, 1, columnHeight * 2);
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            throw new NotSupportedException("Source shouldn't be updated");
+        }
+
+        #endregion
+    }
+
     public class rippingDataTemplateSelector : DataTemplateSelector
     {
         public DataTemplate progressBarDataTemplate { get; set; }
@@ -1025,6 +1046,10 @@ namespace dvdrip
         public String selectedTrackIndex { get; set; }
         public String pathToRip { get; set; }
         public String pathToCompression { get; set; }
+        public Boolean isTV { get; set; }
+        public int tvSeason { get; set; }
+        public int tvEpisode { get; set; }
+        public string tvShowTitle { get; set; }
     }
 
     public class Disc

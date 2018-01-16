@@ -6,42 +6,50 @@
         xmlns:aw="clr-namespace:AvalonWizard;assembly=AvalonWizard"
         xmlns:local="clr-namespace:dvdrip"
         mc:Ignorable="d"
-        Title="DVD Backup" Height="628" Width="1300">
+        Title="DVD Backup" Height="850" Width="1300">
     <Window.Resources>
-        <DataTemplate x:Key="progressBarDataTemplate">
-            <ProgressBar IsIndeterminate="True" Height="10" Width="60" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </DataTemplate>
-        <DataTemplate x:Key="completeDataTemplate">
-            <TextBlock Text="✔" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </DataTemplate>
-        <DataTemplate x:Key="waitingTextDataTemplate">
-            <TextBlock Text="waiting" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-        </DataTemplate>
-        <local:rippingDataTemplateSelector x:Key="ripTemplateSelector"
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <DataTemplate x:Key="progressBarDataTemplate">
+                <ProgressBar IsIndeterminate="True" Height="10" Width="60" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </DataTemplate>
+            <DataTemplate x:Key="completeDataTemplate">
+                <TextBlock Text="✔" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </DataTemplate>
+            <DataTemplate x:Key="waitingTextDataTemplate">
+                <TextBlock Text="waiting" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </DataTemplate>
+            <local:rippingDataTemplateSelector x:Key="ripTemplateSelector"
             progressBarDataTemplate="{StaticResource progressBarDataTemplate}"
             completeDataTemplate="{StaticResource completeDataTemplate}"
             waitingTextDataTemplate="{StaticResource waitingTextDataTemplate}"/>
-        <local:compressingDataTemplateSelector x:Key="compressTemplateSelector"
+            <local:compressingDataTemplateSelector x:Key="compressTemplateSelector"
             progressBarDataTemplate="{StaticResource progressBarDataTemplate}"
             completeDataTemplate="{StaticResource completeDataTemplate}"
             waitingTextDataTemplate="{StaticResource waitingTextDataTemplate}"/>
-        <local:copyingDataTemplateSelector x:Key="copyTemplateSelector"
+            <local:copyingDataTemplateSelector x:Key="copyTemplateSelector"
             progressBarDataTemplate="{StaticResource progressBarDataTemplate}"
             completeDataTemplate="{StaticResource completeDataTemplate}"
             waitingTextDataTemplate="{StaticResource waitingTextDataTemplate}"/>
+        </ResourceDictionary>
+        
     </Window.Resources>
     <Grid>
         <DockPanel LastChildFill="True">
             <!--Right Sidebar-->
-            <StackPanel Orientation="Vertical" DockPanel.Dock="Right" Width="500px"  Background="Aqua">
-                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
-                    <Label Content="In Progress"/>
+            <StackPanel Orientation="Vertical" DockPanel.Dock="Bottom" Height="200" >
+                <Separator Height="10px"></Separator>
+                <StackPanel Orientation="Horizontal" Margin="10,10,0,0">
+                    <Label Content="In Progress" FontWeight="ExtraBold"/>
                     <Button x:Name="btnClearCompleted" Content="Clear Completed" Width="100"/>
                 </StackPanel>
                 <Grid>
                     <ListView Margin="10" Name="lvInProgress">
                         <ListView.View>
-                            <GridView>
+                            <GridView ColumnHeaderContainerStyle="{StaticResource lvColumnHeaders}">
                                 <GridViewColumn Header="Title" Width="210" DisplayMemberBinding="{Binding title}" />
                                 <GridViewColumn Header="Ripped" Width="70" CellTemplateSelector="{StaticResource ripTemplateSelector}"/>
                                 <GridViewColumn Header="Compressed" Width="70" CellTemplateSelector="{StaticResource compressTemplateSelector}"/>
@@ -55,21 +63,20 @@
             <!--Left Content-->
             <Grid>
                 <Grid Name="grdWaitingForDisc" Visibility="Collapsed">
-                    <StackPanel Name="spDiscTypeSelect" Orientation="Vertical"  HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Button x:Name="btnCheckDriveMovie" Content="Movie" Width="91" Click="btnCheckDriveMovie_Click" Margin="0,0,0,20"/>
-                    <Button x:Name="btnCheckDriveTv" Content="Tv" Width="91" Click="btnCheckDriveTv_Click" />
-                </StackPanel>
+                    <Button x:Name="btnCheckDriveMovie" Content="Go" Width="91" Click="btnCheckDriveMovie_Click" Margin="0,0,0,20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     <ProgressBar Name="prgLoadingDisc" IsIndeterminate="true" Height="10" Visibility="Collapsed" VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
                 </Grid>
-                <Grid Name="grdSearchingForTitle" Background="White" Margin="0,10,0,0" Visibility="Collapsed">
+                <Grid Name="grdSearchingForTitle" Background="White" Margin="0,10,0,0" Visibility="Visible">
                     <StackPanel Orientation="Vertical">
-                        <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <TextBox Name="txtTitleSearch" Width="400" Margin="10,0,0,10" GotFocus="txtTitleSearch_GotFocus"></TextBox>
                             <Button Name="btnTitleSearch" Content="Search Again" Width="100" Margin="10,0,0,10" Click="btnTitleSearch_Click"></Button>
+                            <CheckBox Name="chkIsTV" Margin="15,5,0,0"
+                                      IsChecked="{Binding ElementName=MainWindow, Path=discIsTv}">Is disc a TV Show?</CheckBox>
                         </StackPanel>
                         <DockPanel Height="512">
                             <ListView DockPanel.Dock="Left" x:Name="grdMovies" Margin="10,0,0,0"
-                                  
+                                  BorderBrush="#116A8C" 
                                   ItemsSource="{Binding}"
                                   Width="400" SelectionChanged="grdMovies_SelectionChanged">
                                 <ListView.ItemContainerStyle>
@@ -78,7 +85,7 @@
                                     </Style>
                                 </ListView.ItemContainerStyle>
                                 <ListView.View>
-                                    <GridView>
+                                    <GridView ColumnHeaderContainerStyle="{StaticResource lvColumnHeaders}">
                                         <GridViewColumn Header="Title"
                                             DisplayMemberBinding="{Binding Path=title}"/>
                                         <GridViewColumn Header="Release Date"
@@ -113,7 +120,7 @@
 
                     </StackPanel>
                 </Grid>
-                <Grid Name="grdSelectTitlesForRip" Background="White" Visibility="Visible">
+                <Grid Name="grdSelectTitlesForRip" Background="White" Visibility="Collapsed">
                     <StackPanel Orientation="Vertical" Margin="0,22,0,31">
                         <Label FontSize="15" FontWeight="Bold" Content="Selected Movie Details" BorderBrush="Black" BorderThickness="0,0,0 1"/>
                         <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
