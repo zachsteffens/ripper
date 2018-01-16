@@ -72,6 +72,10 @@ namespace dvdrip
         #endregion
 
 
+        [DllImport("winmm.dll", EntryPoint = "mciSendStringA")]
+        public static extern void mciSendString(string lpstrCommand, string lpstrReturnString, long uReturnLength, long hwndCallback);
+
+
         #region Constructor
 
         public MainWindow()
@@ -167,7 +171,7 @@ namespace dvdrip
 
             p.StartInfo.RedirectStandardOutput = true;
             p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Handbrake\\HandBrakeCLI.exe";
-            p.StartInfo.Arguments = "-e x264  -q 20.0 -a 1 -E ffaac,copy:ac3 -B 160 -6 dpl2 -R Auto -D 0.0 --audio-copy-mask aac,ac3,dtshd,dts,mp3 --audio-fallback ffac3 -f av_mkv --strict-anamorphic --denoise medium -m --x264-preset veryslow --x264-tune film --h264-profile high --h264-level 3.1 --subtitle scan --subtitle-forced --subtitle-burned -i \"" + item.pathToRip + "\" -o \"" + item.pathToCompression + "\"";
+            p.StartInfo.Arguments = "-e x264  -q 20.0 -a 1 -E ffaac,copy:ac3 -B 160 -6 dpl2 -R Auto -D 0.0 --audio-copy-mask aac,ac3,dtshd,dts,mp3 --audio-fallback ffac3 -f av_mkv --auto-anamorphic --denoise medium -m --x264-preset veryslow --x264-tune film --h264-profile high --h264-level 3.1 --subtitle scan --subtitle-forced --subtitle-burned -i \"" + item.pathToRip + "\" -o \"" + item.pathToCompression + "\"";
             p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             p.StartInfo.CreateNoWindow = true;
             p.Start();
@@ -217,19 +221,30 @@ namespace dvdrip
                     copyToPath.Append(thisItem.title);
                     copyToPath.Append(".mkv");
 
+                    try
+                    {
+                        File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
+                        thisItem.copying = false;
+                        thisItem.copied = true;
+                        File.Delete(thisItem.pathToRip);
+                        File.Delete(thisItem.pathToCompression);
+                                               
+                        thisItem.removed = true;
+                    }
+                    catch (Exception)
+                    {
+
+                        
+                    }
+
                     
 
-                    File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
-
-                    File.Delete(thisItem.pathToRip);
-                    File.Delete(thisItem.pathToCompression);
+                    
                     //File.Copy(@"D:\From David\Media\Movies\2 Guns (2013)\2 Guns (2013).mp4", @"M:\Media\2 Guns (2013).mp4", true);
 
                     System.Diagnostics.Debug.WriteLine("copy of " + thisItem.title + " complete");
 
-                    thisItem.copying = false;
-                    thisItem.copied = true;
-                    thisItem.removed = true;
+                   
                     await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
@@ -278,8 +293,8 @@ namespace dvdrip
                     currentlyRipping = false;
 
                     //eject the disc
- EjectMedia.Eject(@"\\.\" + ConfigurationManager.AppSettings["dvdRomDriveLetter"] + ": ");
-
+                    //EjectMedia.Eject(@"\\.\" + ConfigurationManager.AppSettings["dvdRomDriveLetter"] + ": ");
+                    mciSendString("set CDAudio door open", "", 0, 0);
                 }
                 else
                 {
@@ -383,7 +398,7 @@ namespace dvdrip
             discIsBlueRay = false;
             discName = "";
             selectedTitle = null;
-            matchingTitles = null;
+            matchingTitles = new ObservableCollection<tmdbResult>();
             selectedMovieDetails = null;
             selectedTrack = null;
             currentDisc = null;
