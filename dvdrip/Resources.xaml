@@ -30,6 +30,14 @@
         <GradientStop Color="#FF0A4F79"/>
         <GradientStop Color="#FF093553" Offset="1"/>
     </LinearGradientBrush>
+    <LinearGradientBrush x:Key="RedBGGradient" EndPoint="0.5,1" StartPoint="0.5,0">
+        <GradientStop Color="#FFA81010"/>
+        <GradientStop Color="#FF840202" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="RedBGGradientHover" EndPoint="0.5,1" StartPoint="0.5,0">
+        <GradientStop Color="#FFFF3019"/>
+        <GradientStop Color="#FFAA0303" Offset="1"/>
+    </LinearGradientBrush>
     <LinearGradientBrush x:Key="columnHeaderBGGradientHover" EndPoint="0.5,1" StartPoint="0.5,0">
         <GradientStop Color="#FF128ECC"/>
         <GradientStop Color="#FF0D5A89" Offset="1"/>
@@ -115,6 +123,36 @@
                         </Trigger>
                         <Trigger Property="IsPressed" Value="true">
                             <Setter TargetName="buttonBorder" Property="Background" Value="{StaticResource columnHeaderBGGradient}"/>
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="false">
+                            <Setter TargetName="buttonBorder" Property="Opacity" Value="0.7"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="RedButton" TargetType="{x:Type Button}">
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type Button}">
+                    <Grid>
+                        <Border Name="buttonBorder" CornerRadius="3" Padding="8,3,8,3"  Background="{StaticResource RedBGGradient}">
+                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="White">
+                                <ContentPresenter />
+                            </TextBlock>
+                        </Border>
+                    </Grid>
+
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="true">
+                            <Setter TargetName="buttonBorder" Property="Background" Value="{StaticResource RedBGGradientHover}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="true">
+                            <Setter TargetName="buttonBorder" Property="Background" Value="{StaticResource RedBGGradient}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="false">
                             <Setter TargetName="buttonBorder" Property="Opacity" Value="0.7"/>

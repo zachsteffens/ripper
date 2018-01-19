@@ -6,7 +6,7 @@
         xmlns:aw="clr-namespace:AvalonWizard;assembly=AvalonWizard"
         xmlns:local="clr-namespace:dvdrip"
         mc:Ignorable="d"
-        Title="DVD Backup" Height="870" Width="810">
+        Title="DVD Backup" Height="890" Width="1000">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -153,11 +153,11 @@
                         <Setter Property="Margin" Value="-1,-2,-2,-2"/>
                         <Setter Property="Margin" TargetName="Content" Value="1,0,0,0"/>
                     </MultiTrigger>
-                    <Trigger Property="IsEnabled" Value="False">
+                    <!--<Trigger Property="IsEnabled" Value="False">
                         <Setter Property="Fill" TargetName="Bd" Value="{DynamicResource TabItemSelectedBackground}"/>
                         <Setter Property="Stroke" TargetName="Bd" Value="#FFC9C7BA"/>
                         <Setter Property="Foreground" Value="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}"/>
-                    </Trigger>
+                    </Trigger>-->
                 </ControlTemplate.Triggers>
             </ControlTemplate>
             <Style TargetType="{x:Type TabControl}">
@@ -257,40 +257,41 @@
         <DockPanel LastChildFill="True">
             <!--Right Sidebar-->
             <StackPanel Orientation="Vertical" DockPanel.Dock="Bottom" Height="200" >
-                <StackPanel Orientation="Horizontal" Margin="10,10,0,0">
-                    <Label Content="In Progress" FontWeight="ExtraBold"/>
-                    <Button x:Name="btnClearCompleted" Content="Clear Completed" Width="100"/>
-                </StackPanel>
+                <DockPanel Margin="10,10,10,0" LastChildFill="True">
+                    <Label DockPanel.Dock="Left" Content="In Progress" FontWeight="ExtraBold"/>
+                    <Button DockPanel.Dock="Right" x:Name="btnClearCompleted" Content="Clear Completed" Style="{StaticResource BlueButton}" />
+                    <Label />
+                </DockPanel>
                 <Grid>
                     <ListView Margin="10" Name="lvInProgress">
                         <ListView.View>
                             <GridView ColumnHeaderContainerStyle="{StaticResource lvColumnHeaders}">
-                                <GridViewColumn Header="Title" Width="210" DisplayMemberBinding="{Binding title}" />
+                                <GridViewColumn Header="Title" Width="280" DisplayMemberBinding="{Binding title}" />
                                 <GridViewColumn Header="Ripped" Width="70" CellTemplateSelector="{StaticResource ripTemplateSelector}"/>
-                                <GridViewColumn Header="Compressed" Width="70" CellTemplateSelector="{StaticResource compressTemplateSelector}"/>
-                                <GridViewColumn Header="Copied" Width="70" CellTemplateSelector="{StaticResource copyTemplateSelector}"/>
-                                <GridViewColumn Header="Cleaned" Width="50" DisplayMemberBinding="{Binding removed}"/>
+                                <GridViewColumn Header="Compressed" Width="90" CellTemplateSelector="{StaticResource compressTemplateSelector}"/>
+                                <GridViewColumn Header="Copied" Width="90" CellTemplateSelector="{StaticResource copyTemplateSelector}"/>
+                                <GridViewColumn Header="Cleaned" Width="90" DisplayMemberBinding="{Binding removed}"/>
                             </GridView>
                         </ListView.View>
                     </ListView>
                 </Grid>
             </StackPanel>
             <!--Left Content-->
-            <TabControl x:Name="tabControlMain" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinWidth="790" MinHeight="590" Margin="5">
-                <TabItem x:Name="tabSearchForTitle" Header="Select Title"  Template="{DynamicResource TabItemControlTemplate1}" FontSize="14">
+            <TabControl x:Name="tabControlMain" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinWidth="980" Height="650" Margin="5">
+                <TabItem x:Name="tabSearchForTitle" Header="Select Title"  Template="{DynamicResource TabItemControlTemplate1}" FontSize="14" IsEnabled="False">
                     <StackPanel Orientation="Vertical">
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                             <Button x:Name="btnCheckDriveMovie" Content="&#x21ba;" ToolTip="Read Name From Disc" Width="25" Height="25" Padding="0,-6,0,0" FontWeight="Bold" FontSize="18" Margin="10,0,0,10" Click="btnCheckDriveMovie_Click"/>
                             <TextBox Name="txtTitleSearch" Width="370" Margin="5,0,0,10" GotFocus="txtTitleSearch_GotFocus"></TextBox>
-                            <Button Name="btnTitleSearch" Content="Search TMDB" Width="100" Margin="10,0,0,10" Click="btnTitleSearch_Click"></Button>
+                            <Button Name="btnTitleSearch" Content="Search TMDB" Style="{StaticResource BlueButton}" Width="100" Margin="10,0,0,10" Click="btnTitleSearch_Click"></Button>
                             <CheckBox Name="chkIsTV" Margin="15,5,0,0"
-                                      IsChecked="{Binding discIsTv, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}">Is disc a TV Show?</CheckBox>
+                                      Checked="chkIsTV_Checked" Unchecked="chkIsTV_Checked">Is disc a TV Show?</CheckBox>
                         </StackPanel>
                         <DockPanel Height="512">
-                            <ListView DockPanel.Dock="Left" x:Name="grdMovies" Margin="10,0,0,0"
+                            <ListView DockPanel.Dock="Left" x:Name="grdSearchResults" Margin="10,0,0,0"
                                   BorderBrush="#116A8C" 
                                   ItemsSource="{Binding}"
-                                  Width="400" SelectionChanged="grdMovies_SelectionChanged">
+                                  Width="400" SelectionChanged="grdSearchResults_SelectionChanged">
                                 <ListView.ItemContainerStyle>
                                     <Style TargetType="ListViewItem">
                                         <Setter Property="IsSelected" Value="{Binding selectedTitle}"/>
@@ -310,6 +311,8 @@
                                     Orientation="Vertical">
                                 <Label FontWeight="Bold" Content="Title:"></Label>
                                 <Label x:Name="lblSelectedTitle" Content=""></Label>
+                                <Label Name="lblSelectSeason" Content="Select Season" FontWeight="Bold"/>
+                                <ComboBox Name="cmbSeason" ItemsSource="{Binding}" Width="100" HorizontalAlignment="Left" Margin="10,5,0,5" />
                                 <Label FontWeight="Bold" Content="Description:"></Label>
                                 <TextBlock x:Name="lblSelectedDescription" TextWrapping="Wrap"
                                        MaxWidth="560" Foreground="Black"></TextBlock>
@@ -317,18 +320,17 @@
                             </StackPanel>
                         </DockPanel>
                         <DockPanel LastChildFill="True" VerticalAlignment="Bottom" Margin="0,10,0,0">
-                            <Button x:Name="btnStartOver1" Content="Start Over" Width="91" Margin="10,0,0,0"/>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
                                 <Label Content="Auto Continue in:"/>
                                 <Label Name="lblDiscSelectCountDown" Width="80"  Content=""/>
-                                <Button x:Name="btnGoToTrackSelect" Content="Next" Width="91" Margin="10,0,10,0" Click="btnGoToTrackSelect_Click"/>
+                                <Button x:Name="btnGoToTrackSelect" Style="{StaticResource BlueButton}" Content="Next" Width="91" Margin="10,0,10,0" Click="btnGoToTrackSelect_Click"/>
                             </StackPanel>
                         </DockPanel>
                     </StackPanel>
                 </TabItem>
-                <TabItem x:Name="tabSelectMovieTrack"  Header="Select Track" Template="{DynamicResource TabItemControlTemplate1}" FontSize="14">
-                    <Grid Name="grdSelectTitlesForRip">
-                        <StackPanel Orientation="Vertical" Margin="0,22,0,31">
+                <TabItem x:Name="tabSelectMovieTrack"  Header="Select Track" Template="{DynamicResource TabItemControlTemplate1}" FontSize="14" IsEnabled="false">
+                    <DockPanel LastChildFill="True" Margin="0,0,0,20">
+                        <StackPanel DockPanel.Dock="Top" Orientation="Vertical" Margin="0,10,0,0">
                             <Label FontSize="15" FontWeight="Bold" Content="Selected Movie Details" BorderBrush="Black" BorderThickness="0,0,0 1"/>
                             <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
                                 <Label FontStyle="Italic" FontWeight="Bold" Content="Title:"/>
@@ -339,7 +341,7 @@
                                 <Label Name="lblSelectedMovieLength" Content=""/>
                             </StackPanel>
                             <Separator Height="3" BorderBrush="Black" BorderThickness="0,0,0 1" />
-                            <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" Margin="0, 10, 0, 0">
                                 <StackPanel Name="spReadingTrackInfo" Orientation="Vertical" Width="848" Visibility="Collapsed">
                                     <Label HorizontalAlignment="Center" FontSize="15" FontWeight="Bold"  Content="Reading track info from disc"/>
                                     <ProgressBar Name="prgLoadingTrackInfo" IsIndeterminate="true" Height="10" VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
@@ -376,22 +378,26 @@
                                 </DockPanel>
                             </StackPanel>
                         </StackPanel>
-                        <DockPanel LastChildFill="True" VerticalAlignment="Bottom" Margin="0,0,0,10">
-                            <Button x:Name="btnStartOver2" Content="Start Over" Width="91" Margin="10,0,0,0"/>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                        <DockPanel LastChildFill="True" VerticalAlignment="Bottom" Width="980">
+                            <Button DockPanel.Dock="Left" x:Name="btnStartOver2" Content="Start Over" Style="{StaticResource RedButton}" Width="91" Margin="10,0,0,0" Click="btnStartOver2_Click"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
                                 <Label Content="Auto Continue in:"/>
                                 <Label Name="lblTrackSelectCountDown" Width="80"  Content=""/>
-                                <Button x:Name="btnAddDiscToQueue" Content="Add To Queue" Width="91" Margin="10,0,10,0" Click="btnAddDiscToQueue_Click"/>
+                                <Button x:Name="btnAddDiscToQueue" Style="{StaticResource BlueButton}" Content="Next" Width="91" Margin="10,0,10,0" Click="btnGoToTrackSelect_Click"/>
                             </StackPanel>
+                            <Grid/>
                         </DockPanel>
-                    </Grid>
+                        <Grid />
+
+
+                    </DockPanel>
                 </TabItem>
                 <TabItem x:Name="tabSelectEpisodes"  Header="Select Episodes" Template="{DynamicResource TabItemControlTemplate1}" FontSize="14">
                     
                 </TabItem>
             </TabControl>
 
-            <Grid>
+            <!--<Grid>
                 <Grid Name="grdWaitingForDisc" Visibility="Collapsed">
                    
                     <ProgressBar Name="prgLoadingDisc" IsIndeterminate="true" Height="10" Visibility="Collapsed" VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
@@ -400,10 +406,14 @@
                    
                 </Grid>
                 
-            </Grid>
+            </Grid>-->
         </DockPanel>
-        
-       
 
+
+        <Border BorderBrush="Black" Name="overlay" BorderThickness="1" Background="#80000000" Visibility="Collapsed" Grid.RowSpan="2">
+            <Grid>
+                <TextBlock Margin="0" TextWrapping="Wrap" Text="Please Wait..." HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="#7EFFFFFF"/>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
