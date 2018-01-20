@@ -42,20 +42,21 @@ namespace dvdrip
             set
             {
                 _discIsTv = value;
+                if (timerDiscSelect != null)
+                    timerDiscSelect.Stop();
                 switch (value)
                 {
                     case true:
                         tabSelectMovieTrack.Visibility = Visibility.Collapsed;
                         tabSelectEpisodes.Visibility = Visibility.Visible;
-                        lblSelectSeason.Visibility = Visibility.Visible;
-                        cmbSeason.Visibility = Visibility.Visible;
-
+                        grdMovieSearchResults.Visibility = Visibility.Collapsed;
+                        grdTvSearchResults.Visibility = Visibility.Visible;
                         break;
                     default:
                         tabSelectMovieTrack.Visibility = Visibility.Visible;
                         tabSelectEpisodes.Visibility = Visibility.Collapsed;
-                        lblSelectSeason.Visibility = Visibility.Collapsed;
-                        cmbSeason.Visibility = Visibility.Collapsed;
+                        grdMovieSearchResults.Visibility = Visibility.Visible;
+                        grdTvSearchResults.Visibility = Visibility.Collapsed;
                         break;
                 }
        
@@ -65,8 +66,12 @@ namespace dvdrip
         public string discName;
         const string tmdbApiKey = "1abe04137ccd4fa521cb5f8e337b9418";
         const string tmdbImageApiUrl = "http://image.tmdb.org/t/p/w185"; // /nuUKcfRYjifwjIJPN1J6kIGcSvD.jpg"
-        public ObservableCollection<tmdbResult> matchingTitles;
-        public tmdbResult selectedTitle;
+        public ObservableCollection<tmdbMovieResult> matchingMovies;
+        public ObservableCollection<tmdbTvShowResult> matchingShows;
+        public ObservableCollection<tmdbTvEpiosode> matchingEpisodes;
+        public tmdbMovieResult selectedMovie;
+        public tmdbTvShowResult selectedShow;
+        public tmdbTvEpiosode selectedEpisode;
         public tmdbMovieDetails selectedMovieDetails;
         public track selectedTrack;
         public Disc currentDisc;
@@ -110,8 +115,9 @@ namespace dvdrip
 
             StartOver();
             lockObj = new object();
-            matchingTitles = new ObservableCollection<tmdbResult>();
+            matchingMovies = new ObservableCollection<tmdbMovieResult>();
             queuedItems = new ObservableCollection<QueuedItem>();
+            matchingEpisodes = new ObservableCollection<tmdbTvEpiosode>();
             waitingToRip = new List<QueuedItem>();
             waitingToCopy = new List<QueuedItem>();
             waitingToCompress = new List<QueuedItem>();
@@ -387,8 +393,7 @@ namespace dvdrip
         }
 
         #endregion
-
-
+        
         #region View Event Handlers
 
         #region title screen
@@ -400,15 +405,27 @@ namespace dvdrip
 
             discName = txtTitleSearch.Text;
             if (discIsTv)
-                getTMDBTVResults();
-            else
-                getTMDBMovieResults();
-            grdSearchResults.ItemsSource = matchingTitles;
-            if (matchingTitles.Count > 0)
             {
-                grdSearchResults.SelectedIndex = 0;
-                setSelectedTitle(matchingTitles[0]);
+                getTMDBTVResults();
+                grdTvSearchResults.ItemsSource = matchingShows;
+                if (matchingShows.Count > 0)
+                {
+                    grdTvSearchResults.SelectedIndex = 0;
+                    setSelectedShow(matchingShows[0]);
+                }
             }
+            else
+            {
+                getTMDBMovieResults();
+                grdMovieSearchResults.ItemsSource = matchingMovies;
+                if (matchingMovies.Count > 0)
+                {
+                    grdMovieSearchResults.SelectedIndex = 0;
+                    setSelectedMovie(matchingMovies[0]);
+                }
+            }
+                
+            
         }
 
 
@@ -424,7 +441,10 @@ namespace dvdrip
         }
         private void grdSearchResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            setSelectedTitle((tmdbResult)grdSearchResults.SelectedItem);
+            if(chkIsTV.IsChecked == true)
+                setSelectedShow((tmdbTvShowResult)grdTvSearchResults.SelectedItem);
+            else
+                setSelectedMovie((tmdbMovieResult)grdMovieSearchResults.SelectedItem);
         }
 
 
@@ -454,24 +474,91 @@ namespace dvdrip
         }
         #endregion movie track screen
 
+        #region Episode Selection
+
+        private async void btnSubmitSeasonEntry_Click(object sender, RoutedEventArgs e)
+        {
+            
+            try
+            {
+                //get detailed season info.
+                tmdbSeasonSearchResult season = GetTvSeasonResults(txtSeasonNumber.Text, selectedShow.id);
+                matchingEpisodes.Clear();
+
+                if (season.episodes.Count > 0)
+                {
+                    foreach (tmdbTvEpiosode result in season.episodes)
+                        matchingEpisodes.Add(result);
+                }
+                grdTvTracks.ItemsSource = matchingEpisodes;
+                if (matchingEpisodes.Count > 0)
+                {
+                    grdEpisodes.SelectedIndex = 0;
+                    setSelectedEpisode(matchingEpisodes[0]);
+                }
+            }
+            catch (Exception)
+            {
+                lblSeasonNotFound.Visibility = Visibility.Visible;
+
+            }
+            //only read the disc if we havent read it yet...
+            if(grdTvTracks.Items.Count == 0)
+            {
+                //get tracks from disc
+                overlay.Visibility = Visibility.Visible;
+
+                //get detailed tv show data
+                var gettingDiscInfo = Task<string>.Factory.StartNew(() => getDetailedDiscInfo());
+
+
+                await gettingDiscInfo;
+                overlay.Visibility = Visibility.Collapsed;
+                ParseDiscInfo(gettingDiscInfo.Result.ToString());
+                grdTvTracks.ItemsSource = currentDisc.tracks;
+            }
+           
+        }
+
+        private void btnAddEpisodeQueue_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        #endregion Episode Selection
+
         #endregion
-        
+
         private void goToSelectTitle()
         {
             //grdWaitingForDisc.Visibility = Visibility.Collapsed;
             //grdSearchingForTitle.Visibility = Visibility.Visible;
             if (discIsTv)
+            {
                 getTMDBTVResults();
+                grdTvSearchResults.ItemsSource = matchingShows;
+                if(matchingShows.Count > 0)
+                {
+                    grdTvSearchResults.SelectedIndex = 0;
+                    setSelectedShow(matchingShows[0]);
+                }
+            }
+                
             else
+            {
                 getTMDBMovieResults();
+                grdMovieSearchResults.ItemsSource = matchingMovies;
+                if (matchingMovies.Count > 0)
+                {
+                    grdMovieSearchResults.SelectedIndex = 0;
+                    setSelectedMovie(matchingMovies[0]);
+                }
+            }
+                
 
                 txtTitleSearch.Text = discName;
-            grdSearchResults.ItemsSource = matchingTitles;
-            if (matchingTitles.Count > 0)
-            {
-                grdSearchResults.SelectedIndex = 0;
-                setSelectedTitle(matchingTitles[0]);
-            }
+            
+           
 
             //setup the automatic timer
             timeDiscSelect = TimeSpan.FromSeconds(30);
@@ -492,28 +579,39 @@ namespace dvdrip
 
         private void getTMDBMovieResults()
         {
-            matchingTitles.Clear();
-            tmdbSearchResult movies = GetMovieResults();
+            matchingMovies.Clear();
+            tmdbMovieSearchResult movies = GetMovieSearchResults();
             if (movies.total_results > 0)
             {
-                foreach (tmdbResult result in movies.results)
-                    matchingTitles.Add(result);
+                foreach (tmdbMovieResult result in movies.results)
+                    matchingMovies.Add(result);
             }
 
         }
 
         private void getTMDBTVResults()
         {
-
+            matchingShows.Clear();
+            tmdbTVSearchResult shows = GetTvSearchResults();
+            if(shows.total_results > 0)
+            {
+                foreach (tmdbTvShowResult result in shows.results)
+                    matchingShows.Add(result);
+            }
         }
         
-        private void setSelectedTitle(tmdbResult _selectedTitle)
+        private void setSelectedEpisode(tmdbTvEpiosode _selectedEpisode)
+        {
+            selectedEpisode = _selectedEpisode;
+        }
+
+        private void setSelectedMovie(tmdbMovieResult _selectedTitle)
         {
             if(_selectedTitle != null)
             {       
-                selectedTitle = _selectedTitle;
-                lblSelectedDescription.Text = selectedTitle.overview;
-                lblSelectedTitle.Content = selectedTitle.title;
+                selectedMovie = _selectedTitle;
+                lblSelectedDescription.Text = selectedMovie.overview;
+                lblSelectedTitle.Content = selectedMovie.title;
 
                 //imgSelectedItemPoster
 
@@ -527,11 +625,34 @@ namespace dvdrip
                 imgSelectedItemPoster.Source = bitmap;
             }
         }
-             
-                
+
+        private void setSelectedShow(tmdbTvShowResult _selectedShow)
+        {
+            if (_selectedShow != null)
+            {
+                selectedShow = _selectedShow;
+                lblSelectedDescription.Text = selectedShow.overview;
+                lblSelectedTitle.Content = selectedShow.name;
+
+                //imgSelectedItemPoster
+
+                var fullFilePath = @"http://image.tmdb.org/t/p/w185" + _selectedShow.poster_path;
+
+                BitmapImage bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.UriSource = new Uri(fullFilePath, UriKind.Absolute);
+                bitmap.EndInit();
+
+                imgSelectedItemPoster.Source = bitmap;
+            }
+        }
+        
         private void btnGoToTrackSelect_Click(object sender, RoutedEventArgs e)
         {
-            goToTrackSelect();
+            if (chkIsTV.IsChecked == true)
+                GoToEpisodeSelection();
+            else
+                goToTrackSelect();
         }
 
         private async void goToTrackSelect()
@@ -539,7 +660,7 @@ namespace dvdrip
             tabControlMain.SelectedIndex = 1;
             if(timerDiscSelect != null)
                 timerDiscSelect.Stop();
-            getDetailedMovieInfo(selectedTitle);
+            getDetailedMovieInfo(selectedMovie);
             lblSelectedMovieTitle.Content = selectedMovieDetails.title;
 
             int hours = selectedMovieDetails.runtime / 60;
@@ -581,7 +702,7 @@ namespace dvdrip
                 if (timeTrackSelect == TimeSpan.Zero)
                 {
                     //go to next step.
-                    addDiscToQueue();
+                    addMovieToQueue();
                 }
                 timeTrackSelect = timeTrackSelect.Add(TimeSpan.FromSeconds(-1));
             }, Application.Current.Dispatcher);
@@ -618,6 +739,34 @@ namespace dvdrip
                 config.Save(ConfigurationSaveMode.Modified);
             }
         }
+        private void btnBrowseTvRipLocation_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new CommonOpenFileDialog();
+            dialog.IsFolderPicker = true;
+            CommonFileDialogResult result = dialog.ShowDialog();
+
+
+            if (result == CommonFileDialogResult.Ok)
+            {
+                StringBuilder suggestedTvTitle = new StringBuilder();
+                suggestedTvTitle.Append(selectedShow.name);
+                suggestedTvTitle.Append("S");
+                suggestedTvTitle.Append(Int32.Parse(txtSeasonNumber.Text).ToString("D2"));
+                suggestedTvTitle.Append("E");
+                suggestedTvTitle.Append(selectedEpisode.episode_number.ToString("D2"));
+                suggestedTvTitle.Append("-");
+                suggestedTvTitle.Append(selectedEpisode.name);
+                txtRipLocation.Text = dialog.FileName;
+                lblFullPath.Content = dialog.FileName + "\\" + getDirectorySafeString(selectedShow.name) + "\\";
+
+                Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+
+                config.AppSettings.Settings.Remove("pathToMediaForRip");
+
+                config.AppSettings.Settings.Add("pathToMediaForRip", dialog.FileName);
+                config.Save(ConfigurationSaveMode.Modified);
+            }
+        }
 
         private void GetProbableTrack()
         {
@@ -638,17 +787,22 @@ namespace dvdrip
 
         }
         
-       
+        private void GoToEpisodeSelection()
+        {
+            tabControlMain.SelectedIndex = 2;
+            lblSeasonNotFound.Visibility = Visibility.Collapsed;
+            grdTvTracks.Items.Clear();
+        }
 
        
 
         #region  ripping Disc
         private void btnAddDiscToQueue_Click(object sender, RoutedEventArgs e)
         {
-            addDiscToQueue();
+            addMovieToQueue();
         }
         
-        private void addDiscToQueue()
+        private void addMovieToQueue()
         {
             timerTrackSelect.Stop();
            
@@ -668,6 +822,11 @@ namespace dvdrip
             StartOver();
             
         }
+
+        private void addEpisodeToQueue()
+        {
+            string fullPath 
+        }
         
         private string getDirectorySafeString(string original)
         {
@@ -679,9 +838,7 @@ namespace dvdrip
         }
 
         #endregion
-
-      
-
+        
         #region Handlers for Disc Detection
         protected override void OnSourceInitialized(EventArgs e)
         {
@@ -853,7 +1010,57 @@ namespace dvdrip
 
         #region support service queries
 
-        private tmdbSearchResult GetMovieResults()
+        private tmdbSeasonSearchResult GetTvSeasonResults(string seasonNumber, int showId)
+        {
+            StringBuilder requestUrl = new StringBuilder();
+            //https://api.themoviedb.org/3/tv/688/season/1?api_key=1abe04137ccd4fa521cb5f8e337b9418&language=en-US
+            requestUrl.Append("https://api.themoviedb.org/3/tv/");
+            requestUrl.Append(showId.ToString());
+            requestUrl.Append("/season/");
+            requestUrl.Append(seasonNumber);
+            requestUrl.Append("?api_key=");
+            requestUrl.Append(tmdbApiKey);
+            requestUrl.Append("&language=en-US");
+            Uri requestUri = new Uri(requestUrl.ToString());
+            WebRequest request = WebRequest.Create(requestUri.ToString());
+            try
+            {
+                WebResponse response = request.GetResponse();
+                Stream dataStream = response.GetResponseStream();
+                StreamReader reader = new StreamReader(dataStream);
+                string text = reader.ReadToEnd();
+                tmdbSeasonSearchResult searchResult = JsonConvert.DeserializeObject<tmdbSeasonSearchResult>(text);
+                return searchResult;
+            }
+            catch (Exception e)
+            {
+
+                throw e;
+            }
+            
+        }
+
+        private tmdbTVSearchResult GetTvSearchResults()
+        {
+            StringBuilder requestUrl = new StringBuilder();
+            //https://api.themoviedb.org/3/search/tv?api_key=1abe04137ccd4fa521cb5f8e337b9418&language=en-US&query=The%20West%20Wing&page=1
+            requestUrl.Append("https://api.themoviedb.org/3/search/tv?api_key=");
+            requestUrl.Append(tmdbApiKey);
+            requestUrl.Append("&language=en-US&query=");
+            requestUrl.Append(discName);
+            requestUrl.Append("&page=1");
+            Uri requestUri = new Uri(requestUrl.ToString());
+            WebRequest request = WebRequest.Create(requestUri.ToString());
+
+            WebResponse response = request.GetResponse();
+            Stream dataStream = response.GetResponseStream();
+            StreamReader reader = new StreamReader(dataStream);
+            string text = reader.ReadToEnd();
+            tmdbTVSearchResult searchResult = JsonConvert.DeserializeObject<tmdbTVSearchResult>(text);
+            return searchResult;
+        }
+
+        private tmdbMovieSearchResult GetMovieSearchResults()
         {
             StringBuilder requestUrl = new StringBuilder();
             //https://api.themoviedb.org/3/search/movie?api_key=1abe04137ccd4fa521cb5f8e337b9418&language=en-US&query=Havana%20Nights&page=1&include_adult=false
@@ -869,11 +1076,11 @@ namespace dvdrip
             Stream dataStream = response.GetResponseStream();
             StreamReader reader = new StreamReader(dataStream);
             string text = reader.ReadToEnd();
-            tmdbSearchResult searchResult = JsonConvert.DeserializeObject<tmdbSearchResult>(text);
+            tmdbMovieSearchResult searchResult = JsonConvert.DeserializeObject<tmdbMovieSearchResult>(text);
             return searchResult;
         }
 
-        private void getDetailedMovieInfo(tmdbResult _selectedTitle)
+        private void getDetailedMovieInfo(tmdbMovieResult _selectedTitle)
         {
             StringBuilder requestUrl = new StringBuilder();
             //https://api.themoviedb.org/3/movie/348089?api_key=1abe04137ccd4fa521cb5f8e337b9418&language=en-US
@@ -907,8 +1114,11 @@ namespace dvdrip
             discIsTv = false;
             discIsBlueRay = false;
             discName = "";
-            selectedTitle = null;
-            matchingTitles = new ObservableCollection<tmdbResult>();
+            selectedMovie = null;
+            selectedShow = null;
+            selectedEpisode = null;
+            matchingMovies = new ObservableCollection<tmdbMovieResult>();
+            matchingShows = new ObservableCollection<tmdbTvShowResult>();
             selectedMovieDetails = null;
             selectedTrack = null;
             currentDisc = null;
@@ -938,6 +1148,8 @@ namespace dvdrip
             goToSelectTitle();
 
         }
+
+
 
 
         #endregion
@@ -1123,14 +1335,54 @@ namespace dvdrip
         public string length { get; set; }
         public float size { get; set; }
     }
-    public class tmdbSearchResult
+
+    public class tmdbTVSearchResult
     {
         public int page { get; set; }
         public int total_results { get; set; }
         public int total_pages { get; set; }
-        public IList<tmdbResult> results { get; set; }
+        public IList<tmdbTvShowResult> results { get; set; }
     }
-    public class tmdbResult
+    public class tmdbTvShowResult
+    {
+        public string original_name { get; set; }
+        public int id { get; set; }
+        public string name { get; set; }
+        public string poster_path { get; set; }
+        public string backdrop_path { get; set; }
+        public string overview { get; set; }
+        public List<String> origin_country { get; set; }
+        public string first_air_date { get; set; }
+    }
+    public class tmdbSeasonSearchResult
+    {
+        public string _id { get; set; }
+        public IList<tmdbTvEpiosode> episodes { get; set; }
+        public string name { get; set; }
+        public string overview { get; set; }
+        public int id { get; set; }
+        public string poster_path { get; set; }
+        public int season_number { get; set; }
+    }
+    public class tmdbTvEpiosode
+    {
+        public string air_date { get; set; }
+        public int episode_number { get; set; }
+        public string name { get; set; }
+        public string production_code { get; set; }
+        public string still_path { get; set; }
+        public string overview { get; set; }
+        
+    }
+
+    public class tmdbMovieSearchResult
+    {
+        public int page { get; set; }
+        public int total_results { get; set; }
+        public int total_pages { get; set; }
+        public IList<tmdbMovieResult> results { get; set; }
+    }
+    public class tmdbMovieResult
     {
         public int vote_count { get; set; }
         public int id { get; set; }

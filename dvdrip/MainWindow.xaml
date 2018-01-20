@@ -288,7 +288,7 @@
                                       Checked="chkIsTV_Checked" Unchecked="chkIsTV_Checked">Is disc a TV Show?</CheckBox>
                         </StackPanel>
                         <DockPanel Height="512">
-                            <ListView DockPanel.Dock="Left" x:Name="grdSearchResults" Margin="10,0,0,0"
+                            <ListView DockPanel.Dock="Left" x:Name="grdMovieSearchResults" Margin="10,0,0,0"
                                   BorderBrush="#116A8C" 
                                   ItemsSource="{Binding}"
                                   Width="400" SelectionChanged="grdSearchResults_SelectionChanged">
@@ -306,13 +306,29 @@
                                     </GridView>
                                 </ListView.View>
                             </ListView>
+                            <ListView DockPanel.Dock="Left" x:Name="grdTvSearchResults" Visibility="Collapsed" Margin="10,0,0,0"
+                                  BorderBrush="#116A8C" 
+                                  ItemsSource="{Binding}"
+                                  Width="400" SelectionChanged="grdSearchResults_SelectionChanged">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="IsSelected" Value="{Binding selectedShow}"/>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.View>
+                                    <GridView ColumnHeaderContainerStyle="{StaticResource lvColumnHeaders}">
+                                        <GridViewColumn Header="Title"
+                                            DisplayMemberBinding="{Binding Path=name}"/>
+                                        <GridViewColumn Header="Release Date"
+                                            DisplayMemberBinding="{Binding Path=first_air_date}"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
                             <StackPanel DockPanel.Dock="Right"
                                     Name="spSelectedItem"
                                     Orientation="Vertical">
                                 <Label FontWeight="Bold" Content="Title:"></Label>
                                 <Label x:Name="lblSelectedTitle" Content=""></Label>
-                                <Label Name="lblSelectSeason" Content="Select Season" FontWeight="Bold"/>
-                                <ComboBox Name="cmbSeason" ItemsSource="{Binding}" Width="100" HorizontalAlignment="Left" Margin="10,5,0,5" />
                                 <Label FontWeight="Bold" Content="Description:"></Label>
                                 <TextBlock x:Name="lblSelectedDescription" TextWrapping="Wrap"
                                        MaxWidth="560" Foreground="Black"></TextBlock>
@@ -358,7 +374,7 @@
                                             </Style>
                                         </ListView.ItemContainerStyle>
                                         <ListView.View>
-                                            <GridView>
+                                            <GridView  ColumnHeaderContainerStyle="{StaticResource lvColumnHeaders}">
                                                 <GridViewColumn Header="Size(MB)"
                                                 DisplayMemberBinding="{Binding Path=size}"/>
                                                 <GridViewColumn Header="Length"
@@ -383,7 +399,7 @@
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
                                 <Label Content="Auto Continue in:"/>
                                 <Label Name="lblTrackSelectCountDown" Width="80"  Content=""/>
-                                <Button x:Name="btnAddDiscToQueue" Style="{StaticResource BlueButton}" Content="Next" Width="91" Margin="10,0,10,0" Click="btnGoToTrackSelect_Click"/>
+                                <Button x:Name="btnAddDiscToQueue" Style="{StaticResource BlueButton}" Content="Next" Width="91" Margin="10,0,10,0" Click="btnAddDiscToQueue_Click"/>
                             </StackPanel>
                             <Grid/>
                         </DockPanel>
@@ -393,7 +409,85 @@
                     </DockPanel>
                 </TabItem>
                 <TabItem x:Name="tabSelectEpisodes"  Header="Select Episodes" Template="{DynamicResource TabItemControlTemplate1}" FontSize="14">
-                    
+                    <DockPanel LastChildFill="True">
+                        <StackPanel DockPanel.Dock="Top" Orientation="Vertical" Height="565">
+                            <Label FontSize="15" FontWeight="Bold" Content="Selected Tv Season" BorderBrush="Black" BorderThickness="0,0,0 1"/>
+                            <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
+                                <Label FontStyle="Italic" FontWeight="Bold" Content="Title:"/>
+                                <Label Name="lblSelectedTvTitle" Content=""/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
+                                <Label FontStyle="Italic" FontWeight="Bold" Content="Season #:"/>
+                                <TextBox Name="txtSeasonNumber" Width="85"/>
+                                <Button x:Name="btnSubmitSeasonEntry" Style="{StaticResource BlueButton}" Content="Submit" Margin="10,0,10,0" Click="btnSubmitSeasonEntry_Click"/>
+                                <Label FontStyle="Italic" Content="*Season not found, try again" Foreground="Red" Name="lblSeasonNotFound"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
+                                <Label FontStyle="Italic" FontWeight="Bold" Content="Episode Count:"/>
+                                <Label Name="lblEpisodeCount" Content=""/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
+                                <Label FontStyle="Italic" FontWeight="Bold" Content="Most Recently Ripped Episode:"/>
+                                <Label Name="lblMostRecentEpisodeRip" Content=""/>
+                            </StackPanel>
+                            <StackPanel Margin="60,0,0,0" Orientation="Vertical">
+                                <Label Content="Path to store ripped video:" FontWeight="Bold"></Label>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBox Name="txtTvRipLocation" Width="300" Text="c:\somewhere" IsEnabled="False"></TextBox>
+                                    <Button Padding="5,0,5,0" Name="btnBrowseTvRipLocation" Content="browse" Click="btnBrowseTvRipLocation_Click"></Button>
+                                </StackPanel>
+                                <Label Name="lblTvFullPath" Margin="5,0,0,0" FontStyle="Italic" Content="*c:\somewhere"></Label>
+
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="20, 10,0,0">
+                                <ListView Name="grdEpisodes" 
+                                        Margin="10,0,0,0" HorizontalAlignment="Left"
+                                        ItemsSource="{Binding}"
+                                        Width="500" SelectionChanged="grdTracks_SelectionChanged">
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="IsSelected" Value="{Binding selectedTrack}"/>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.View>
+                                        <GridView  ColumnHeaderContainerStyle="{StaticResource lvColumnHeaders}">
+                                            <GridViewColumn Header="#" Width="25"
+                                                    DisplayMemberBinding="{Binding Path=number}"/>
+                                            <GridViewColumn Header="Episode Title" Width="365"
+                                                    DisplayMemberBinding="{Binding Path=title}"/>
+                                            <GridViewColumn Header="Length" Width="100"
+                                                    DisplayMemberBinding="{Binding Path=runtime}"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                                <ListView Name="grdTvTracks" 
+                                        Margin="10,0,0,0" HorizontalAlignment="Left"
+                                        ItemsSource="{Binding}"
+                                        Width="400" SelectionChanged="grdTracks_SelectionChanged">
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="IsSelected" Value="{Binding selectedTrack}"/>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.View>
+                                        <GridView  ColumnHeaderContainerStyle="{StaticResource lvColumnHeaders}">
+                                            <GridViewColumn Header="Size(MB)"
+                                                DisplayMemberBinding="{Binding Path=size}"/>
+                                            <GridViewColumn Header="Length"
+                                                DisplayMemberBinding="{Binding Path=length}"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </StackPanel>
+                        </StackPanel>
+                        <DockPanel LastChildFill="True" VerticalAlignment="Bottom" Width="980" Margin="0,10,0,10">
+                            <Button DockPanel.Dock="Left" x:Name="btnStartOver3" Content="Start Over" Style="{StaticResource RedButton}" Width="91" Margin="10,0,0,0" Click="btnStartOver2_Click"/>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                                <Button x:Name="btnAddEpisodeQueue" Style="{StaticResource BlueButton}" Content="Add Episode to Queue" Margin="10,0,10,0" Click="btnAddEpisodeQueue_Click" />
+                            </StackPanel>
+                            <Grid/>
+                        </DockPanel>
+                    </DockPanel>
                 </TabItem>
             </TabControl>
 
