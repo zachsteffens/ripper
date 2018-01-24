@@ -506,7 +506,7 @@
 
         <Border BorderBrush="Black" Name="overlay" BorderThickness="1" Background="#80000000" Visibility="Collapsed" Grid.RowSpan="2">
             <Grid>
-                <TextBlock Margin="0" TextWrapping="Wrap" Text="Please Wait..." HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="#7EFFFFFF"/>
+                <TextBlock Margin="0" Name="txtOverlay" TextWrapping="Wrap" Text="Please Wait..." HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="24" FontWeight="Bold" Foreground="#7EFFFFFF"/>
             </Grid>
         </Border>
     </Grid>
