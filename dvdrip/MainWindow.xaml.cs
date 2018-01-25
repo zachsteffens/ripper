@@ -186,6 +186,7 @@ namespace dvdrip
                     throw new Exception("empty output");
                 }
                 string rippedTitle = Directory.GetFiles(pathToCreateFiles)[0];
+                //renames the ripped mkv track to the name specified in the previous step
                 int indexofslash = rippedTitle.LastIndexOf("\\");
                 itemToRip.pathToRip = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_rip.mkv";
                 itemToRip.pathToCompression = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_compressed.mkv";
@@ -233,69 +234,9 @@ namespace dvdrip
 
             return output;
             
-
-
-        }
-
-        private async void copyfileThread(object sender, DoWorkEventArgs e)
-        {
-            while (isCopyThreadRunning)
-            {
-                if (!currentlyCopying && waitingToCopy.Count > 0)
-                {
-                    QueuedItem itemToCopy = waitingToCopy[0];
-                    waitingToCopy.RemoveAt(0);
-
-                    QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCopy.title).FirstOrDefault();
-                    thisItem.copying = true;
-                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
-                    {
-                        lvInProgress.Items.Refresh();
-                        lvInProgress.UpdateLayout();
-                    }));
-                    System.Diagnostics.Debug.WriteLine("copying " + thisItem.title);
-
-                    StringBuilder copyToPath = new StringBuilder();
-                    copyToPath.Append(ConfigurationManager.AppSettings["pathToNetworkMedia"]);
-                    copyToPath.Append("Movies\\");
-                    copyToPath.Append(thisItem.title);
-
-                    try { Directory.Delete(copyToPath.ToString(), true); }
-                    catch (Exception ex) { }
-
-                    try { DirectoryInfo di = Directory.CreateDirectory(copyToPath.ToString()); }
-                    catch (Exception ex) { }
-
-                    copyToPath.Append("\\");
-                    copyToPath.Append(thisItem.title);
-                    copyToPath.Append(".mkv");
-
-                    try
-                    {
-                        File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
-                        thisItem.copying = false;
-                        thisItem.copied = true;
-                        File.Delete(thisItem.pathToRip);
-                        File.Delete(thisItem.pathToCompression);
-                                               
-                        thisItem.removed = true;
-                    }
-                    catch (Exception)
-                    {
-                        thisItem.failedCopy = true;
-                    }
                     
-                    System.Diagnostics.Debug.WriteLine("copy of " + thisItem.title + " complete");
                                        
-                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
-                    {
-                        lvInProgress.Items.Refresh();
-                        lvInProgress.UpdateLayout();
-                    }));
-                    currentlyCopying = false;
                 }
-            }
-        }
 
         private async void ripDiscThread(object sender, DoWorkEventArgs e)
         {
@@ -306,6 +247,8 @@ namespace dvdrip
                 if (!currentlyRipping && waitingToRip.Count > 0)
                 {
                     currentlyRipping = true;
+                    txtOverlay.Text = "Ripping disc. Do not eject.";
+                    overlay.Visibility = Visibility.Visible;
                     QueuedItem itemToRip = waitingToRip[0];
                     waitingToRip.RemoveAt(0);
 
@@ -333,10 +276,10 @@ namespace dvdrip
                         lvInProgress.UpdateLayout();
                     }));
                     currentlyRipping = false;
-
+                    overlay.Visibility = Visibility.Collapsed;
+                    txtOverlay.Text = "Please Wait...";
                     //eject the disc
-                    //EjectMedia.Eject(@"\\.\" + ConfigurationManager.AppSettings["dvdRomDriveLetter"] + ": ");
-                    mciSendString("set CDAudio door open", "", 0, 0);
+                    //cant eject, if it's tv, there might be multiple tracks to rip on this disc.
                 }
                 else
                 {
@@ -388,6 +331,84 @@ namespace dvdrip
                 else
                 {
                     System.Threading.Thread.Sleep(10000);
+                }
+            }
+        }
+
+        private async void copyfileThread(object sender, DoWorkEventArgs e)
+        {
+            while (isCopyThreadRunning)
+            {
+                if (!currentlyCopying && waitingToCopy.Count > 0)
+                {
+                    QueuedItem itemToCopy = waitingToCopy[0];
+                    waitingToCopy.RemoveAt(0);
+
+                    QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCopy.title).FirstOrDefault();
+                    thisItem.copying = true;
+                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    {
+                        lvInProgress.Items.Refresh();
+                        lvInProgress.UpdateLayout();
+                    }));
+
+                    System.Diagnostics.Debug.WriteLine("copying " + thisItem.title);
+                    StringBuilder copyToPath = new StringBuilder();
+
+                    if (thisItem.isTV)
+                    {
+                        
+                        copyToPath.Append(ConfigurationManager.AppSettings["pathToNetworkMedia"]);
+                        copyToPath.Append("TV\\");
+                        copyToPath.Append(thisItem.tvShowTitle);
+                        copyToPath.Append("\\S");
+                        copyToPath.Append(thisItem.tvSeason.ToString("D2"));
+                                                
+                        try { DirectoryInfo di = Directory.CreateDirectory(copyToPath.ToString()); }
+                        catch (Exception ex) { }
+                    }
+                    else
+                    {   //movie
+                        copyToPath.Append(ConfigurationManager.AppSettings["pathToNetworkMedia"]);
+                        copyToPath.Append("Movies\\");
+                        copyToPath.Append(thisItem.title);
+
+                        try { Directory.Delete(copyToPath.ToString(), true); }
+                        catch (Exception ex) { }
+
+                        try { DirectoryInfo di = Directory.CreateDirectory(copyToPath.ToString()); }
+                        catch (Exception ex) { }
+                    }
+
+                    copyToPath.Append("\\");
+                    copyToPath.Append(thisItem.title);
+                    copyToPath.Append(".mkv");
+
+                    try
+                    {
+                        File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
+                        thisItem.copying = false;
+                        thisItem.copied = true;
+                        File.Delete(thisItem.pathToRip);
+                        File.Delete(thisItem.pathToCompression);
+
+                        thisItem.removed = true;
+                    }
+                    catch (Exception)
+                    {
+                        thisItem.failedCopy = true;
+                    }
+                    
+                    
+
+                    System.Diagnostics.Debug.WriteLine("copy of " + thisItem.title + " complete");
+
+                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    {
+                        lvInProgress.Items.Refresh();
+                        lvInProgress.UpdateLayout();
+                    }));
+                    currentlyCopying = false;
                 }
             }
         }
@@ -576,7 +597,6 @@ namespace dvdrip
             timerDiscSelect.Start();
         }
                        
-
         private void getTMDBMovieResults()
         {
             matchingMovies.Clear();
@@ -825,7 +845,25 @@ namespace dvdrip
 
         private void addEpisodeToQueue()
         {
-            //string fullPath 
+            string fullPath = txtTvRipLocation.Text;
+                        
+            StringBuilder episodeTitle = new StringBuilder();
+            episodeTitle.Append(selectedShow.name);
+            episodeTitle.Append("S");
+            episodeTitle.Append(Int32.Parse(txtSeasonNumber.Text).ToString("D2"));
+            episodeTitle.Append("E");
+            episodeTitle.Append(selectedEpisode.episode_number.ToString("D2"));
+            episodeTitle.Append("-");
+            episodeTitle.Append(selectedEpisode.name);
+            string selectedTrackIndex = grdTvTracks.SelectedIndex.ToString();
+            QueuedItem toAdd = new QueuedItem(fullPath, episodeTitle.ToString(), selectedTrackIndex);
+            toAdd.isTV = true;
+            toAdd.tvEpisode = selectedEpisode.episode_number;
+            toAdd.tvSeason = Int32.Parse(txtSeasonNumber.Text);
+            toAdd.tvShowTitle = selectedShow.name;
+            queuedItems.Add(toAdd);
+            waitingToRip.Add(toAdd);
+
         }
         
         private string getDirectorySafeString(string original)
