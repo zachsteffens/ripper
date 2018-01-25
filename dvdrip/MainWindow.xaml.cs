@@ -825,7 +825,7 @@ namespace dvdrip
 
         private void addEpisodeToQueue()
         {
-            string fullPath 
+            //string fullPath 
         }
         
         private string getDirectorySafeString(string original)
@@ -922,7 +922,7 @@ namespace dvdrip
 
             p.StartInfo.RedirectStandardOutput = true;
             p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
-            p.StartInfo.Arguments = "-r info disc:0";
+            p.StartInfo.Arguments = "-r info disc:1";
             p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             p.StartInfo.CreateNoWindow = true;
             p.Start();
