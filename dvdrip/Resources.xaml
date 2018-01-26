@@ -2,7 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:dvdrip"
                     xmlns:clr="clr-namespace:System;assembly=mscorlib">
-    <clr:Double x:Key="columnHeight">19</clr:Double>
+    <clr:Double x:Key="columnHeight">23.75</clr:Double>
     <local:ColumnViewportConverter x:Key="columnViewportConverter" />
 
     <LinearGradientBrush x:Key="WhiteToBlueVerticalGradient" EndPoint="0.5,1" StartPoint="0.5,0">
@@ -194,14 +194,14 @@
 
     <Style x:Key="lvColumnHeaders" TargetType="{x:Type GridViewColumnHeader}">
         <Setter Property="Foreground" Value="White"/>
-        <Setter Property="Height" Value="20"/>
+        <Setter Property="Height" Value="30"/>
         <Setter Property="Margin" Value="-2,0,-2,0"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="GridViewColumnHeader">
                     <Grid>
                         <Border Name="HeaderBorder"
-					            BorderThickness="1,1,0,0"
+					            BorderThickness="0,0,0,0"
 					            BorderBrush="#FF336699"
 					            Background="{StaticResource columnHeaderBGGradient}"
 					            Padding="0,0,0,0">

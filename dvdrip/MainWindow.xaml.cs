@@ -68,10 +68,10 @@ namespace dvdrip
         const string tmdbImageApiUrl = "http://image.tmdb.org/t/p/w185"; // /nuUKcfRYjifwjIJPN1J6kIGcSvD.jpg"
         public ObservableCollection<tmdbMovieResult> matchingMovies;
         public ObservableCollection<tmdbTvShowResult> matchingShows;
-        public ObservableCollection<tmdbTvEpiosode> matchingEpisodes;
+        public ObservableCollection<tmdbTvEpisode> matchingEpisodes;
         public tmdbMovieResult selectedMovie;
         public tmdbTvShowResult selectedShow;
-        public tmdbTvEpiosode selectedEpisode;
+        public tmdbTvEpisode selectedEpisode;
         public tmdbMovieDetails selectedMovieDetails;
         public track selectedTrack;
         public Disc currentDisc;
@@ -117,7 +117,7 @@ namespace dvdrip
             lockObj = new object();
             matchingMovies = new ObservableCollection<tmdbMovieResult>();
             queuedItems = new ObservableCollection<QueuedItem>();
-            matchingEpisodes = new ObservableCollection<tmdbTvEpiosode>();
+            matchingEpisodes = new ObservableCollection<tmdbTvEpisode>();
             waitingToRip = new List<QueuedItem>();
             waitingToCopy = new List<QueuedItem>();
             waitingToCompress = new List<QueuedItem>();
@@ -129,11 +129,14 @@ namespace dvdrip
             rippingWorker = new BackgroundWorker();
             isRippingThreadRunning = true;
             rippingWorker.DoWork += ripDiscThread;
+            rippingWorker.WorkerReportsProgress = true;
+            rippingWorker.ProgressChanged += rippingProgressChanged;
             rippingWorker.RunWorkerAsync();
 
             compressionWorker = new BackgroundWorker();
             isCompressionThreadRunning = true;
             compressionWorker.DoWork += compressionThread;
+            //compressionWorker.RunWorkerCompleted +=
             compressionWorker.RunWorkerAsync();
 
             copyWorker = new BackgroundWorker();
@@ -147,7 +150,20 @@ namespace dvdrip
         #endregion
 
         #region Asyncronous Method to monitor and rip
-
+        private void rippingProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            //update the text overlay here
+            if (currentlyRipping == true)
+            {
+                txtOverlay.Text = "Do not eject. Ripping Disc.";
+                txtOverlay.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                txtOverlay.Text = "Please Wait...";
+                txtOverlay.Visibility = Visibility.Collapsed;
+            }
+        }
         private String RipDiscToMkv(QueuedItem itemToRip)
         {
 
@@ -247,8 +263,6 @@ namespace dvdrip
                 if (!currentlyRipping && waitingToRip.Count > 0)
                 {
                     currentlyRipping = true;
-                    txtOverlay.Text = "Ripping disc. Do not eject.";
-                    overlay.Visibility = Visibility.Visible;
                     QueuedItem itemToRip = waitingToRip[0];
                     waitingToRip.RemoveAt(0);
 
@@ -261,25 +275,31 @@ namespace dvdrip
                         lvInProgress.UpdateLayout();
                     }));
                     System.Diagnostics.Debug.WriteLine("ripping " + thisItem.title);
+#if TESTINGNODISC
+                    System.Threading.Thread.Sleep(22000);
+#else
+                    //turn on the overlay
+                    rippingWorker.ReportProgress(0);
                     var rippingDisc = Task<string>.Factory.StartNew(() => RipDiscToMkv(thisItem));
-                    //System.Threading.Thread.Sleep(15000);
                     await rippingDisc;
+                    //turn off the overlay
+                    rippingWorker.ReportProgress(100);
+#endif
                     System.Diagnostics.Debug.WriteLine("rip of " + thisItem.title + " complete");
 
                     thisItem.ripping = false;
                     thisItem.ripped = true;
                     waitingToCompress.Add(thisItem);
                     //refresn the view
+                   
                     await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
                         lvInProgress.UpdateLayout();
                     }));
                     currentlyRipping = false;
-                    overlay.Visibility = Visibility.Collapsed;
-                    txtOverlay.Text = "Please Wait...";
-                    //eject the disc
-                    //cant eject, if it's tv, there might be multiple tracks to rip on this disc.
+                   
+                   
                 }
                 else
                 {
@@ -309,11 +329,12 @@ namespace dvdrip
                         lvInProgress.UpdateLayout();
                     }));
                     System.Diagnostics.Debug.WriteLine("compressing " + thisItem.title);
-
+#if TESTINGNODISC
+                    System.Threading.Thread.Sleep(22000);
+#else
                     var compressingMkv = Task<string>.Factory.StartNew(() => CompressWithHandbrake(thisItem));
-                    //System.Threading.Thread.Sleep(15000);
-
                     await compressingMkv;
+#endif
                     System.Diagnostics.Debug.WriteLine("compression of " + thisItem.title + " complete");
                     thisItem.compressing = false;
                     thisItem.compressed = true;
@@ -346,6 +367,7 @@ namespace dvdrip
 
                     QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCopy.title).FirstOrDefault();
                     thisItem.copying = true;
+                    System.Diagnostics.Debug.WriteLine("Start copying " + thisItem.title);
                     await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
@@ -386,20 +408,21 @@ namespace dvdrip
 
                     try
                     {
+#if TESTINGNODISC
+                        System.Threading.Thread.Sleep(20000);
+#else
                         File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
-                        thisItem.copying = false;
-                        thisItem.copied = true;
                         File.Delete(thisItem.pathToRip);
                         File.Delete(thisItem.pathToCompression);
-
+#endif
+                        thisItem.copying = false;
+                        thisItem.copied = true;
                         thisItem.removed = true;
                     }
                     catch (Exception)
                     {
                         thisItem.failedCopy = true;
-                    }
-                    
-                    
+                    }                    
 
                     System.Diagnostics.Debug.WriteLine("copy of " + thisItem.title + " complete");
 
@@ -454,11 +477,17 @@ namespace dvdrip
         {
             discIsTv = false;
 
+            
+#if (TESTINGNODISC)
+                DiscReady();
+#else
             foreach (var drive in DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.CDRom))
             {
                 if (drive.IsReady)
                     DiscReady();
             }
+#endif
+
         }
         private void grdSearchResults_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -480,22 +509,26 @@ namespace dvdrip
                 timerDiscSelect.Stop();
         }
 
-        #endregion title screen
+#endregion title screen
 
-        #region movie track screen
+#region movie track screen
 
         private void grdTracks_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             selectedTrack = (track)grdTracks.SelectedItem;
+        }
+        private void grdTvTracks_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            selectedEpisode = (tmdbTvEpisode)grdTvSearchResults.SelectedItem;
         }
 
         private void btnStartOver2_Click(object sender, RoutedEventArgs e)
         {
             StartOver();
         }
-        #endregion movie track screen
+#endregion movie track screen
 
-        #region Episode Selection
+#region Episode Selection
 
         private async void btnSubmitSeasonEntry_Click(object sender, RoutedEventArgs e)
         {
@@ -508,10 +541,10 @@ namespace dvdrip
 
                 if (season.episodes.Count > 0)
                 {
-                    foreach (tmdbTvEpiosode result in season.episodes)
+                    foreach (tmdbTvEpisode result in season.episodes)
                         matchingEpisodes.Add(result);
                 }
-                grdTvTracks.ItemsSource = matchingEpisodes;
+                grdEpisodes.ItemsSource = matchingEpisodes;
                 if (matchingEpisodes.Count > 0)
                 {
                     grdEpisodes.SelectedIndex = 0;
@@ -529,13 +562,24 @@ namespace dvdrip
                 //get tracks from disc
                 overlay.Visibility = Visibility.Visible;
 
+#if TESTINGNODISC
+                currentDisc = new Disc();
+                track dummyTrack = new track();
+                dummyTrack.length = "1:55:00";
+                dummyTrack.size = 1500;
+                currentDisc.tracks.Add(dummyTrack);
+                System.Threading.Thread.Sleep(7000);
+#else
                 //get detailed tv show data
                 var gettingDiscInfo = Task<string>.Factory.StartNew(() => getDetailedDiscInfo());
 
 
                 await gettingDiscInfo;
-                overlay.Visibility = Visibility.Collapsed;
+                
                 ParseDiscInfo(gettingDiscInfo.Result.ToString());
+#endif
+                
+                overlay.Visibility = Visibility.Collapsed;
                 grdTvTracks.ItemsSource = currentDisc.tracks;
             }
            
@@ -543,12 +587,30 @@ namespace dvdrip
 
         private void btnAddEpisodeQueue_Click(object sender, RoutedEventArgs e)
         {
+            string fullPath = txtTvRipLocation.Text;
+                        
+            StringBuilder episodeTitle = new StringBuilder();
+            episodeTitle.Append(selectedShow.name);
+            episodeTitle.Append("S");
+            episodeTitle.Append(Int32.Parse(txtSeasonNumber.Text).ToString("D2"));
+            episodeTitle.Append("E");
+            episodeTitle.Append(selectedEpisode.episode_number.ToString("D2"));
+            episodeTitle.Append("-");
+            episodeTitle.Append(selectedEpisode.name);
+            string selectedTrackIndex = grdTvTracks.SelectedIndex.ToString();
+            QueuedItem toAdd = new QueuedItem(fullPath, episodeTitle.ToString(), selectedTrackIndex);
+            toAdd.isTV = true;
+            toAdd.tvEpisode = selectedEpisode.episode_number;
+            toAdd.tvSeason = Int32.Parse(txtSeasonNumber.Text);
+            toAdd.tvShowTitle = selectedShow.name;
+            queuedItems.Add(toAdd);
+            waitingToRip.Add(toAdd);
 
         }
 
-        #endregion Episode Selection
+#endregion Episode Selection
 
-        #endregion
+#endregion
 
         private void goToSelectTitle()
         {
@@ -620,7 +682,7 @@ namespace dvdrip
             }
         }
         
-        private void setSelectedEpisode(tmdbTvEpiosode _selectedEpisode)
+        private void setSelectedEpisode(tmdbTvEpisode _selectedEpisode)
         {
             selectedEpisode = _selectedEpisode;
         }
@@ -677,6 +739,7 @@ namespace dvdrip
 
         private async void goToTrackSelect()
         {
+            overlay.Visibility = Visibility.Visible;
             tabControlMain.SelectedIndex = 1;
             if(timerDiscSelect != null)
                 timerDiscSelect.Stop();
@@ -700,20 +763,31 @@ namespace dvdrip
 
             txtRipLocation.Text = suggestedMovieBasePath;
             lblFullPath.Content = txtRipLocation.Text + getDirectorySafeString(suggestedMovieTitle.ToString());
-            var gettingDiscInfo = Task<string>.Factory.StartNew(() => getDetailedDiscInfo());
+            
 
-            overlay.Visibility = Visibility.Visible;
+#if TESTINGNODISC
+            currentDisc = new Disc();
+            track dummyTrack = new track();
+            dummyTrack.length = "1:55:00";
+            dummyTrack.size = 1500;
+            currentDisc.tracks.Add(dummyTrack);
+            System.Threading.Thread.Sleep(7000);
+#else
+            var gettingDiscInfo = Task<string>.Factory.StartNew(() => getDetailedDiscInfo());
             await gettingDiscInfo;
-            overlay.Visibility = Visibility.Collapsed;
-            spReadingTrackInfo.Visibility = Visibility.Collapsed;
-            dockTrackInfo.Visibility = Visibility.Visible;
+                        
             ParseDiscInfo(gettingDiscInfo.Result.ToString());
             GetProbableTrack();
+#endif
+
+
+
             grdTracks.ItemsSource = currentDisc.tracks;
             grdTracks.SelectedItem = selectedTrack;
-
-
-
+            spReadingTrackInfo.Visibility = Visibility.Collapsed;
+            dockTrackInfo.Visibility = Visibility.Visible;
+            overlay.Visibility = Visibility.Collapsed;
+            
             //setup the automatic timer
             timeTrackSelect = TimeSpan.FromSeconds(30);
             timerTrackSelect = new DispatcherTimer(new TimeSpan(0, 0, 1), DispatcherPriority.Normal, delegate
@@ -811,12 +885,13 @@ namespace dvdrip
         {
             tabControlMain.SelectedIndex = 2;
             lblSeasonNotFound.Visibility = Visibility.Collapsed;
-            grdTvTracks.Items.Clear();
+            grdTvTracks.ItemsSource = null;
+            
         }
 
        
 
-        #region  ripping Disc
+#region  ripping Disc
         private void btnAddDiscToQueue_Click(object sender, RoutedEventArgs e)
         {
             addMovieToQueue();
@@ -875,9 +950,9 @@ namespace dvdrip
             return original;
         }
 
-        #endregion
+#endregion
         
-        #region Handlers for Disc Detection
+#region Handlers for Disc Detection
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
@@ -921,11 +996,15 @@ namespace dvdrip
 
 
 
-        #endregion
+#endregion
 
-        #region Methods for Disc reading/parsing
+#region Methods for Disc reading/parsing
         private string getHighLevelDiscInfo()
         {
+#if TESTINGNODISC
+            System.Threading.Thread.Sleep(5000);
+            return "The Big Lebowski";
+#else
             StringBuilder returnMe = new StringBuilder();
             ManagementClass mc = new ManagementClass("Win32_CDROMDrive");
             ManagementObjectCollection moc = mc.GetInstances();
@@ -946,6 +1025,7 @@ namespace dvdrip
                 toReturn = toReturn.Remove(toReturn.Length - 3, 3);
             }
             return toReturn.Replace('_', ' '); ;
+#endif
         }
 
         private String getDetailedDiscInfo()
@@ -1044,9 +1124,9 @@ namespace dvdrip
             string[] columns = line.Split(new[] { "," }, StringSplitOptions.None);
             return columns[whichParamIsValue - 1].Replace("\"", "");
         }
-        #endregion
+#endregion
 
-        #region support service queries
+#region support service queries
 
         private tmdbSeasonSearchResult GetTvSeasonResults(string seasonNumber, int showId)
         {
@@ -1137,9 +1217,9 @@ namespace dvdrip
             selectedMovieDetails = JsonConvert.DeserializeObject<tmdbMovieDetails>(text);
 
         }
-        #endregion
+#endregion
 
-        #region High Level App Activities (Add/Remove Disc)
+#region High Level App Activities (Add/Remove Disc)
         
         private void DiscRemoved()
         {
@@ -1148,6 +1228,13 @@ namespace dvdrip
 
         private void StartOver()
         {
+            chkIsTV.IsChecked = false;
+            txtTitleSearch.Text = "";
+            grdTvSearchResults.ItemsSource = null;
+            grdMovieSearchResults.ItemsSource = null;
+            imgSelectedItemPoster.Source = null;
+            lblSelectedTitle.Content = "";
+            lblSelectedDescription.Text = "";
             tabControlMain.SelectedIndex = 0;
             discIsTv = false;
             discIsBlueRay = false;
@@ -1190,16 +1277,32 @@ namespace dvdrip
 
 
 
+
         #endregion
 
-        
+        private void btnClearCompleted_Click(object sender, RoutedEventArgs e)
+        {
+            List<QueuedItem> toRemove = new List<QueuedItem>();
+            foreach (QueuedItem item in queuedItems)
+            {
+                if (item.removed)
+                {
+                    toRemove.Add(item);
+                }
+            }
+
+            foreach(QueuedItem removeMe in toRemove)
+            {
+                queuedItems.Remove(removeMe);
+            }
+        }
     }
 
 
     #region Xaml style support classes 
     public class ColumnViewportConverter : IValueConverter
     {
-        #region IValueConverter Members
+#region IValueConverter Members
 
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
@@ -1212,7 +1315,7 @@ namespace dvdrip
             throw new NotSupportedException("Source shouldn't be updated");
         }
 
-        #endregion
+#endregion
     }
     [ValueConversion(typeof(object), typeof(string))]
     public class TabSizeConverter : IValueConverter
@@ -1324,9 +1427,9 @@ namespace dvdrip
 
         }
     }
-    #endregion
+#endregion
 
-    #region Structs and Data Classes
+#region Structs and Data Classes
 
     public class QueuedItem
     {
@@ -1395,14 +1498,14 @@ namespace dvdrip
     public class tmdbSeasonSearchResult
     {
         public string _id { get; set; }
-        public IList<tmdbTvEpiosode> episodes { get; set; }
+        public IList<tmdbTvEpisode> episodes { get; set; }
         public string name { get; set; }
         public string overview { get; set; }
         public int id { get; set; }
         public string poster_path { get; set; }
         public int season_number { get; set; }
     }
-    public class tmdbTvEpiosode
+    public class tmdbTvEpisode
     {
         public string air_date { get; set; }
         public int episode_number { get; set; }
@@ -1466,7 +1569,7 @@ namespace dvdrip
         public string title { get; set; }
     }
 
-    #endregion
+#endregion
 }
 
 
