@@ -519,7 +519,11 @@ namespace dvdrip
         }
         private void grdTvTracks_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            selectedEpisode = (tmdbTvEpisode)grdTvSearchResults.SelectedItem;
+           
+        }
+        private void grdEpisodes_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            selectedEpisode = (tmdbTvEpisode)grdEpisodes.SelectedItem;
         }
 
         private void btnStartOver2_Click(object sender, RoutedEventArgs e)
