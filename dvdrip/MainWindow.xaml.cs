@@ -170,8 +170,8 @@ namespace dvdrip
             ////remove the directory if it exists
             string pathToCreateFiles = System.IO.Path.GetFullPath(itemToRip.fullPath);
 
-            try { Directory.Delete(pathToCreateFiles, true); }
-            catch (Exception e) { }
+            //try { Directory.Delete(pathToCreateFiles, true); }
+            //catch (Exception e) { }
 
             try { DirectoryInfo di = Directory.CreateDirectory(pathToCreateFiles); }
             catch (Exception e) { }
@@ -186,22 +186,31 @@ namespace dvdrip
 
                 p.StartInfo.RedirectStandardOutput = true;
                 p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
-                p.StartInfo.Arguments = "mkv disc:1 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
+                p.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
                 p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
                 p.StartInfo.CreateNoWindow = true;
+                Stopwatch ripStopwatch = new Stopwatch();
+                ripStopwatch.Start();
                 p.Start();
                 // Do not wait for the child process to exit before
                 // reading to the end of its redirected stream.
                 // p.WaitForExit();
                 // Read the output stream first and then wait.
-                string output = p.StandardOutput.ReadToEnd();
+                
                 
                 p.WaitForExit();
-                if(output.Length == 0)
+                ripStopwatch.Stop();
+                string output = p.StandardOutput.ReadToEnd();
+                //if it finished in less than 3 minutes throw exception
+                if (ripStopwatch.ElapsedMilliseconds < 10000)
                 {
+                    string ripFailOutput = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_ripFailure.txt";
+                    File.WriteAllText(ripFailOutput, output);
+                    itemToRip.failedRipTextFile = ripFailOutput;
                     throw new Exception("empty output");
                 }
-                string rippedTitle = Directory.GetFiles(pathToCreateFiles)[0];
+                //string rippedTitle = Directory.GetFiles(pathToCreateFiles)[0];
+                string rippedTitle = itemToRip.fullPath + "\\title" + Int32.Parse(itemToRip.selectedTrackIndex).ToString("D2") + ".mkv";
                 //renames the ripped mkv track to the name specified in the previous step
                 int indexofslash = rippedTitle.LastIndexOf("\\");
                 itemToRip.pathToRip = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_rip.mkv";
@@ -212,9 +221,7 @@ namespace dvdrip
             {
                 itemToRip.failedRip = true;
             }
-            //return output;
-
-
+            
             return "";
         }
 
@@ -233,6 +240,8 @@ namespace dvdrip
                 p.StartInfo.Arguments = "-e x264  -q 20.0 -a 1 -E ffaac,copy:ac3 -B 160 -6 dpl2 -R Auto -D 0.0 --audio-copy-mask aac,ac3,dtshd,dts,mp3 --audio-fallback ffac3 -f av_mkv --auto-anamorphic --denoise medium -m --x264-preset veryslow --x264-tune film --h264-profile high --h264-level 3.1 --subtitle scan --subtitle-forced --subtitle-burned -i \"" + item.pathToRip + "\" -o \"" + item.pathToCompression + "\"";
                 p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
                 p.StartInfo.CreateNoWindow = true;
+                Stopwatch compressStopwatch = new Stopwatch();
+                compressStopwatch.Start();
                 p.Start();
                 // Do not wait for the child process to exit before
                 // reading to the end of its redirected stream.
@@ -240,8 +249,17 @@ namespace dvdrip
                 // Read the output stream first and then wait.
                 output = p.StandardOutput.ReadToEnd();
                 p.WaitForExit();
-                if (output.Length == 0)
+                compressStopwatch.Stop();
+                
+                if (compressStopwatch.ElapsedMilliseconds < 180000)
+                {
+                    string compressFailOutput = System.IO.Path.Combine(item.fullPath, item.title) + "_compressionFailure.txt";
+                    File.WriteAllText(compressFailOutput, output);
+                    item.failedCompressTextFile = compressFailOutput;
                     throw new Exception("empty output");
+                }
+                
+                
             }
             catch (Exception e)
             {
@@ -254,7 +272,7 @@ namespace dvdrip
                                        
                 }
 
-        private async void ripDiscThread(object sender, DoWorkEventArgs e)
+        private void ripDiscThread(object sender, DoWorkEventArgs e)
         {
 
             //check to see if ripping
@@ -269,7 +287,7 @@ namespace dvdrip
                     QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToRip.title).FirstOrDefault();
                     thisItem.ripping = true;
                     //refresn the view
-                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
                         lvInProgress.UpdateLayout();
@@ -278,38 +296,33 @@ namespace dvdrip
 #if TESTINGNODISC
                     System.Threading.Thread.Sleep(22000);
 #else
-                    //turn on the overlay
-                    rippingWorker.ReportProgress(0);
-                    var rippingDisc = Task<string>.Factory.StartNew(() => RipDiscToMkv(thisItem));
-                    await rippingDisc;
-                    //turn off the overlay
-                    rippingWorker.ReportProgress(100);
+                    RipDiscToMkv(thisItem);
 #endif
                     System.Diagnostics.Debug.WriteLine("rip of " + thisItem.title + " complete");
-
                     thisItem.ripping = false;
-                    thisItem.ripped = true;
-                    waitingToCompress.Add(thisItem);
+                    if (thisItem.failedRip != true)
+                    {
+                        thisItem.ripped = true;
+                        waitingToCompress.Add(thisItem);
+                    }                
+                                        
                     //refresn the view
-                   
-                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
                         lvInProgress.UpdateLayout();
                     }));
                     currentlyRipping = false;
-                   
-                   
+                                      
                 }
                 else
                 {
                     System.Threading.Thread.Sleep(10000);
                 }
             }
-
         }
 
-        private async void compressionThread(object sender, DoWorkEventArgs e)
+        private void compressionThread(object sender, DoWorkEventArgs e)
         {
 
             while (isCompressionThreadRunning)
@@ -323,7 +336,7 @@ namespace dvdrip
                     QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCompress.title).FirstOrDefault();
                     thisItem.compressing = true;
                     //refresn the view
-                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
                         lvInProgress.UpdateLayout();
@@ -332,16 +345,19 @@ namespace dvdrip
 #if TESTINGNODISC
                     System.Threading.Thread.Sleep(22000);
 #else
-                    var compressingMkv = Task<string>.Factory.StartNew(() => CompressWithHandbrake(thisItem));
-                    await compressingMkv;
+                    CompressWithHandbrake(thisItem);
+                    
 #endif
                     System.Diagnostics.Debug.WriteLine("compression of " + thisItem.title + " complete");
                     thisItem.compressing = false;
-                    thisItem.compressed = true;
-                    thisItem.copied = true;
-                    waitingToCopy.Add(thisItem);
+                    if (thisItem.failedCompression != true)
+                    {
+                        thisItem.compressed = true;
+                        waitingToCopy.Add(thisItem);
+                    }
+                                        
                     //refresn the view
-                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                    Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
                         lvInProgress.Items.Refresh();
                         lvInProgress.UpdateLayout();
@@ -412,12 +428,12 @@ namespace dvdrip
                         System.Threading.Thread.Sleep(20000);
 #else
                         File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
-                        File.Delete(thisItem.pathToRip);
-                        File.Delete(thisItem.pathToCompression);
+                        //File.Delete(thisItem.pathToRip);
+                        //File.Delete(thisItem.pathToCompression);
 #endif
                         thisItem.copying = false;
                         thisItem.copied = true;
-                        thisItem.removed = true;
+                        //thisItem.removed = true;
                     }
                     catch (Exception)
                     {
@@ -475,7 +491,7 @@ namespace dvdrip
 
         private void btnCheckDriveMovie_Click(object sender, RoutedEventArgs e)
         {
-            discIsTv = false;
+            discIsTv = chkIsTV.IsChecked == true;
 
             
 #if (TESTINGNODISC)
@@ -537,6 +553,11 @@ namespace dvdrip
         private async void btnSubmitSeasonEntry_Click(object sender, RoutedEventArgs e)
         {
             
+
+            if (timerDiscSelect != null)
+                timerDiscSelect.Stop();
+            if (timerTrackSelect != null)
+                timerTrackSelect.Stop();
             try
             {
                 //get detailed season info.
@@ -591,25 +612,27 @@ namespace dvdrip
 
         private void btnAddEpisodeQueue_Click(object sender, RoutedEventArgs e)
         {
-            string fullPath = txtTvRipLocation.Text;
+            if(grdEpisodes.SelectedItem != null && grdTvTracks.SelectedItem != null)
+            {
+                string fullPath = lblTvFullPath.Content.ToString();
                         
-            StringBuilder episodeTitle = new StringBuilder();
-            episodeTitle.Append(selectedShow.name);
-            episodeTitle.Append("S");
-            episodeTitle.Append(Int32.Parse(txtSeasonNumber.Text).ToString("D2"));
-            episodeTitle.Append("E");
-            episodeTitle.Append(selectedEpisode.episode_number.ToString("D2"));
-            episodeTitle.Append("-");
-            episodeTitle.Append(selectedEpisode.name);
-            string selectedTrackIndex = grdTvTracks.SelectedIndex.ToString();
-            QueuedItem toAdd = new QueuedItem(fullPath, episodeTitle.ToString(), selectedTrackIndex);
-            toAdd.isTV = true;
-            toAdd.tvEpisode = selectedEpisode.episode_number;
-            toAdd.tvSeason = Int32.Parse(txtSeasonNumber.Text);
-            toAdd.tvShowTitle = selectedShow.name;
-            queuedItems.Add(toAdd);
-            waitingToRip.Add(toAdd);
-
+                StringBuilder episodeTitle = new StringBuilder();
+                episodeTitle.Append(selectedShow.name);
+                episodeTitle.Append("S");
+                episodeTitle.Append(Int32.Parse(txtSeasonNumber.Text).ToString("D2"));
+                episodeTitle.Append("E");
+                episodeTitle.Append(selectedEpisode.episode_number.ToString("D2"));
+                episodeTitle.Append("-");
+                episodeTitle.Append(selectedEpisode.name);
+                string selectedTrackIndex = grdTvTracks.SelectedIndex.ToString();
+                QueuedItem toAdd = new QueuedItem(fullPath, episodeTitle.ToString(), selectedTrackIndex);
+                toAdd.isTV = true;
+                toAdd.tvEpisode = selectedEpisode.episode_number;
+                toAdd.tvSeason = Int32.Parse(txtSeasonNumber.Text);
+                toAdd.tvShowTitle = selectedShow.name;
+                queuedItems.Add(toAdd);
+                waitingToRip.Add(toAdd);
+            }
         }
 
 #endregion Episode Selection
@@ -846,17 +869,9 @@ namespace dvdrip
 
             if (result == CommonFileDialogResult.Ok)
             {
-                StringBuilder suggestedTvTitle = new StringBuilder();
-                suggestedTvTitle.Append(selectedShow.name);
-                suggestedTvTitle.Append("S");
-                suggestedTvTitle.Append(Int32.Parse(txtSeasonNumber.Text).ToString("D2"));
-                suggestedTvTitle.Append("E");
-                suggestedTvTitle.Append(selectedEpisode.episode_number.ToString("D2"));
-                suggestedTvTitle.Append("-");
-                suggestedTvTitle.Append(selectedEpisode.name);
-                txtRipLocation.Text = dialog.FileName;
-                lblFullPath.Content = dialog.FileName + "\\" + getDirectorySafeString(selectedShow.name) + "\\";
-
+                txtTvRipLocation.Text = dialog.FileName;
+                lblTvFullPath.Content = dialog.FileName + "\\" + getDirectorySafeString(selectedShow.name);
+                                
                 Configuration config = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
 
                 config.AppSettings.Settings.Remove("pathToMediaForRip");
@@ -890,7 +905,12 @@ namespace dvdrip
             tabControlMain.SelectedIndex = 2;
             lblSeasonNotFound.Visibility = Visibility.Collapsed;
             grdTvTracks.ItemsSource = null;
+            string suggestedMovieBasePath = ConfigurationManager.AppSettings["pathToMediaForRip"];
+            StringBuilder suggestedRipLocationTitle = new StringBuilder();
+            suggestedRipLocationTitle.Append(selectedShow.name);
             
+            txtTvRipLocation.Text = suggestedMovieBasePath;
+            lblTvFullPath.Content = txtTvRipLocation.Text + "\\" + getDirectorySafeString(selectedShow.name);
         }
 
        
@@ -1044,7 +1064,7 @@ namespace dvdrip
 
             p.StartInfo.RedirectStandardOutput = true;
             p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
-            p.StartInfo.Arguments = "-r info disc:1";
+            p.StartInfo.Arguments = "-r info disc:0";
             p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             p.StartInfo.CreateNoWindow = true;
             p.Start();
@@ -1300,6 +1320,18 @@ namespace dvdrip
                 queuedItems.Remove(removeMe);
             }
         }
+
+        private void RipHyperlink_Click(object sender, RoutedEventArgs e)
+        {
+           QueuedItem thisItem = (QueuedItem)((Hyperlink)sender).DataContext;
+            System.Diagnostics.Process.Start(thisItem.failedRipTextFile);
+        }
+
+        private void CompressHyperlink_Click(object sender, RoutedEventArgs e)
+        {
+            QueuedItem thisItem = (QueuedItem)((Hyperlink)sender).DataContext;
+            System.Diagnostics.Process.Start(thisItem.failedCompressTextFile);
+        }
     }
 
 
@@ -1352,6 +1384,7 @@ namespace dvdrip
         public DataTemplate progressBarDataTemplate { get; set; }
         public DataTemplate completeDataTemplate { get; set; }
         public DataTemplate waitingTextDataTemplate { get; set; }
+        public DataTemplate failedRipDataTemplate { get; set; }
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -1368,7 +1401,12 @@ namespace dvdrip
                 }
                 else
                 {
-                    return waitingTextDataTemplate;
+                    if(thisItem.failedRip == true)
+                    {
+                        return failedRipDataTemplate;
+                    }
+                    else
+                        return waitingTextDataTemplate;
                 }
             }
             
@@ -1380,6 +1418,7 @@ namespace dvdrip
         public DataTemplate progressBarDataTemplate { get; set; }
         public DataTemplate completeDataTemplate { get; set; }
         public DataTemplate waitingTextDataTemplate { get; set; }
+       
 
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
@@ -1408,7 +1447,7 @@ namespace dvdrip
         public DataTemplate progressBarDataTemplate { get; set; }
         public DataTemplate completeDataTemplate { get; set; }
         public DataTemplate waitingTextDataTemplate { get; set; }
-
+        public DataTemplate failedCompressDataTemplate { get; set; }
         public override DataTemplate SelectTemplate(object item, DependencyObject container)
         {
             QueuedItem thisItem = (QueuedItem)item;
@@ -1424,7 +1463,10 @@ namespace dvdrip
                 }
                 else
                 {
-                    return waitingTextDataTemplate;
+                    if (thisItem.failedCompression)
+                        return failedCompressDataTemplate;
+                    else
+                        return waitingTextDataTemplate;
                 }
             }
 
@@ -1463,6 +1505,8 @@ namespace dvdrip
         public int tvSeason { get; set; }
         public int tvEpisode { get; set; }
         public string tvShowTitle { get; set; }
+        public string failedRipTextFile { get; set; }
+        public string failedCompressTextFile { get; set; }
     }
     public class Disc
     {

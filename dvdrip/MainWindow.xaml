@@ -38,6 +38,10 @@
                 <GradientStop Color="#BEE6FD" Offset=".5"/>
                 <GradientStop Color="#A7D9F5" Offset="1"/>
             </LinearGradientBrush>
+            <LinearGradientBrush x:Key="ListViewSelectedItem" EndPoint="0,1" StartPoint="0,0">
+                <GradientStop Color="#008000" Offset="0"/>
+                <GradientStop Color="#00ffff" Offset="1"/>
+            </LinearGradientBrush>
             <SolidColorBrush x:Key="TabItemHotBorderBrush" Color="#3C7FB1"/>
             <SolidColorBrush x:Key="TabItemDisabledBackground" Color="#F4F4F4"/>
             <SolidColorBrush x:Key="TabItemDisabledBorderBrush" Color="#FFC9C7BA"/>
@@ -234,19 +238,33 @@
                 <ProgressBar IsIndeterminate="True" Height="10" Width="60" HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </DataTemplate>
             <DataTemplate x:Key="completeDataTemplate">
-                <TextBlock Text="✔" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="✔" HorizontalAlignment="Center" Foreground="Green" VerticalAlignment="Center"/>
+            </DataTemplate>
+            <DataTemplate x:Key="failedRipDataTemplate">
+                <TextBlock  HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Hyperlink Click="RipHyperlink_Click" Foreground="Red" TextDecorations="None">&#10006;</Hyperlink>
+                </TextBlock>
+            </DataTemplate>
+            <DataTemplate x:Key="failedCompressDataTemplate">
+                <TextBlock  HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Hyperlink Click="CompressHyperlink_Click" Foreground="Red" TextDecorations="None">&#10006;</Hyperlink>
+                </TextBlock>
             </DataTemplate>
             <DataTemplate x:Key="waitingTextDataTemplate">
-                <TextBlock Text="waiting" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <TextBlock Text="waiting" HorizontalAlignment="Center" FontWeight="Bold" Foreground="Blue" VerticalAlignment="Center"/>
             </DataTemplate>
             <local:rippingDataTemplateSelector x:Key="ripTemplateSelector"
             progressBarDataTemplate="{StaticResource progressBarDataTemplate}"
             completeDataTemplate="{StaticResource completeDataTemplate}"
-            waitingTextDataTemplate="{StaticResource waitingTextDataTemplate}"/>
+            waitingTextDataTemplate="{StaticResource waitingTextDataTemplate}"
+            failedRipDataTemplate="{StaticResource failedRipDataTemplate}"/>
+           
             <local:compressingDataTemplateSelector x:Key="compressTemplateSelector"
             progressBarDataTemplate="{StaticResource progressBarDataTemplate}"
             completeDataTemplate="{StaticResource completeDataTemplate}"
-            waitingTextDataTemplate="{StaticResource waitingTextDataTemplate}"/>
+            waitingTextDataTemplate="{StaticResource waitingTextDataTemplate}"
+            failedCompressDataTemplate="{StaticResource failedCompressDataTemplate}"/>
+            
             <local:copyingDataTemplateSelector x:Key="copyTemplateSelector"
             progressBarDataTemplate="{StaticResource progressBarDataTemplate}"
             completeDataTemplate="{StaticResource completeDataTemplate}"
@@ -299,15 +317,21 @@
                                     IsDefault="True"
                                     Content="Search TMDB" Style="{StaticResource BlueButton}" Width="100" Margin="10,0,0,10" Click="btnTitleSearch_Click"/>
                             <CheckBox x:Name="chkIsTV" Margin="15,5,0,0"
-                                      Checked="chkIsTV_Checked" Unchecked="chkIsTV_Checked" Content="Is disc a TV Show?"/>
+                                      Checked="chkIsTV_Checked" Unchecked="chkIsTV_Checked" Content="Is this a TV Show?"/>
                         </StackPanel>
                         <DockPanel Height="512">
                             <ListView DockPanel.Dock="Left" x:Name="grdMovieSearchResults" Margin="10,0,0,0"
                                   BorderBrush="#116A8C"
                                   Width="400" SelectionChanged="grdSearchResults_SelectionChanged">
                                 <ListView.ItemContainerStyle>
+
                                     <Style TargetType="{x:Type ListViewItem}">
                                         <Setter Property="IsSelected" Value="{Binding selectedTitle}"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="{StaticResource ListViewSelectedItem}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </ListView.ItemContainerStyle>
                                 <ListView.View>
@@ -326,6 +350,11 @@
                                 <ListView.ItemContainerStyle>
                                     <Style TargetType="{x:Type ListViewItem}">
                                         <Setter Property="IsSelected" Value="{Binding selectedShow}"/>
+                                        <Style.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="{StaticResource ListViewSelectedItem}"/>
+                                            </Trigger>
+                                        </Style.Triggers>
                                     </Style>
                                 </ListView.ItemContainerStyle>
                                 <ListView.View>
@@ -384,6 +413,11 @@
                                         <ListView.ItemContainerStyle>
                                             <Style TargetType="{x:Type ListViewItem}">
                                                 <Setter Property="IsSelected" Value="{Binding selectedTrack}"/>
+                                                <Style.Triggers>
+                                                    <Trigger Property="IsSelected" Value="True">
+                                                        <Setter Property="Background" Value="{StaticResource ListViewSelectedItem}"/>
+                                                    </Trigger>
+                                                </Style.Triggers>
                                             </Style>
                                         </ListView.ItemContainerStyle>
                                         <ListView.View>
@@ -462,6 +496,11 @@
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="{x:Type ListViewItem}">
                                             <Setter Property="IsSelected" Value="{Binding selectedTrack}"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource ListViewSelectedItem}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
                                         </Style>
                                     </ListView.ItemContainerStyle>
                                     <ListView.View>
@@ -482,6 +521,11 @@
                                     <ListView.ItemContainerStyle>
                                         <Style TargetType="{x:Type ListViewItem}">
                                             <Setter Property="IsSelected" Value="{Binding selectedTrack}"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource ListViewSelectedItem}"/>
+                                                </Trigger>
+                                            </Style.Triggers>
                                         </Style>
                                     </ListView.ItemContainerStyle>
                                     <ListView.View>
