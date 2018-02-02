@@ -113,6 +113,8 @@ namespace dvdrip
         {
             InitializeComponent();
 
+            Debug.WriteLine("app started");
+
             StartOver();
             lockObj = new object();
             matchingMovies = new ObservableCollection<tmdbMovieResult>();
@@ -164,6 +166,17 @@ namespace dvdrip
                 txtOverlay.Visibility = Visibility.Collapsed;
             }
         }
+
+        private static void MyProcOutputHandler(object sendingProcess,
+            DataReceivedEventArgs outLine)
+        {
+            // Collect the sort command output. 
+            if (!String.IsNullOrEmpty(outLine.Data))
+            {
+                Debug.WriteLine(outLine.Data);
+            } 
+        }
+
         private String RipDiscToMkv(QueuedItem itemToRip)
         {
 
@@ -185,8 +198,9 @@ namespace dvdrip
                 p.StartInfo.UseShellExecute = false;
 
                 p.StartInfo.RedirectStandardOutput = true;
+                p.OutputDataReceived += new DataReceivedEventHandler(MyProcOutputHandler);
                 p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
-                p.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
+                p.StartInfo.Arguments = "mkv disc:1 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
                 p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
                 p.StartInfo.CreateNoWindow = true;
                 Stopwatch ripStopwatch = new Stopwatch();
@@ -196,11 +210,10 @@ namespace dvdrip
                 // reading to the end of its redirected stream.
                 // p.WaitForExit();
                 // Read the output stream first and then wait.
-                
-                
+
+                string output = p.StandardOutput.ReadToEnd();
                 p.WaitForExit();
                 ripStopwatch.Stop();
-                string output = p.StandardOutput.ReadToEnd();
                 //if it finished in less than 3 minutes throw exception
                 if (ripStopwatch.ElapsedMilliseconds < 10000)
                 {
@@ -210,7 +223,7 @@ namespace dvdrip
                     throw new Exception("empty output");
                 }
                 //string rippedTitle = Directory.GetFiles(pathToCreateFiles)[0];
-                string rippedTitle = itemToRip.fullPath + "\\title" + Int32.Parse(itemToRip.selectedTrackIndex).ToString("D2") + ".mkv";
+                string rippedTitle = itemToRip.fullPath + "\\" + itemToRip.rippedMKVTitle;
                 //renames the ripped mkv track to the name specified in the previous step
                 int indexofslash = rippedTitle.LastIndexOf("\\");
                 itemToRip.pathToRip = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_rip.mkv";
@@ -625,7 +638,9 @@ namespace dvdrip
                 episodeTitle.Append("-");
                 episodeTitle.Append(selectedEpisode.name);
                 string selectedTrackIndex = grdTvTracks.SelectedIndex.ToString();
+                track selectedTrack = (track)grdTvTracks.SelectedItem;
                 QueuedItem toAdd = new QueuedItem(fullPath, episodeTitle.ToString(), selectedTrackIndex);
+                toAdd.rippedMKVTitle = selectedTrack.title;
                 toAdd.isTV = true;
                 toAdd.tvEpisode = selectedEpisode.episode_number;
                 toAdd.tvSeason = Int32.Parse(txtSeasonNumber.Text);
@@ -935,34 +950,13 @@ namespace dvdrip
             string title = getDirectorySafeString(suggestedMovieTitle.ToString());
                        
             string selectedTrackIndex = grdTracks.SelectedIndex.ToString();
+            track selectedTrack = (track)grdTracks.SelectedItem;
             QueuedItem toAdd = new QueuedItem(fullPath, title, selectedTrackIndex);
+            toAdd.rippedMKVTitle = selectedTrack.title;
             queuedItems.Add(toAdd);
             waitingToRip.Add(toAdd);
             StartOver();
             
-        }
-
-        private void addEpisodeToQueue()
-        {
-            string fullPath = txtTvRipLocation.Text;
-                        
-            StringBuilder episodeTitle = new StringBuilder();
-            episodeTitle.Append(selectedShow.name);
-            episodeTitle.Append("S");
-            episodeTitle.Append(Int32.Parse(txtSeasonNumber.Text).ToString("D2"));
-            episodeTitle.Append("E");
-            episodeTitle.Append(selectedEpisode.episode_number.ToString("D2"));
-            episodeTitle.Append("-");
-            episodeTitle.Append(selectedEpisode.name);
-            string selectedTrackIndex = grdTvTracks.SelectedIndex.ToString();
-            QueuedItem toAdd = new QueuedItem(fullPath, episodeTitle.ToString(), selectedTrackIndex);
-            toAdd.isTV = true;
-            toAdd.tvEpisode = selectedEpisode.episode_number;
-            toAdd.tvSeason = Int32.Parse(txtSeasonNumber.Text);
-            toAdd.tvShowTitle = selectedShow.name;
-            queuedItems.Add(toAdd);
-            waitingToRip.Add(toAdd);
-
         }
         
         private string getDirectorySafeString(string original)
@@ -1001,10 +995,10 @@ namespace dvdrip
                 switch ((int)wparam)
                 {
                     case deviceDetector.MediaInsertedNotification.DbtDeviceremovecomplete:
-                        DiscRemoved(); // this is where you do your magic
+                        //DiscRemoved(); // this is where you do your magic
                         break;
                     case deviceDetector.MediaInsertedNotification.DbtDevicearrival:
-                        DiscReady(); // this is where you do your magic
+                        //DiscReady(); // this is where you do your magic
                         break;
                 }
             }
@@ -1061,10 +1055,10 @@ namespace dvdrip
             Process p = new Process();
             // Redirect the output stream of the child process.
             p.StartInfo.UseShellExecute = false;
-
+            p.OutputDataReceived += new DataReceivedEventHandler(MyProcOutputHandler);
             p.StartInfo.RedirectStandardOutput = true;
             p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
-            p.StartInfo.Arguments = "-r info disc:0";
+            p.StartInfo.Arguments = "-r info disc:1";
             p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
             p.StartInfo.CreateNoWindow = true;
             p.Start();
@@ -1072,9 +1066,13 @@ namespace dvdrip
             // reading to the end of its redirected stream.
             // p.WaitForExit();
             // Read the output stream first and then wait.
+            //p.BeginOutputReadLine();
             string output = p.StandardOutput.ReadToEnd();
             p.WaitForExit();
             
+            //TODO: Zach
+            //if output contains - then notify but dont fail
+            //"available for download"
             return output;
         }
 
@@ -1129,6 +1127,9 @@ namespace dvdrip
                             if (value.EndsWith("GB"))
                                 currentTrack.size = currentTrack.size * 1000;
                             break;
+                        case "27":
+                            currentTrack.title = value;
+                            break;
                         default:
                             break;
                     }
@@ -1137,6 +1138,8 @@ namespace dvdrip
 
 
             }
+            //add the final track to the disc
+            currentDisc.tracks.Add(currentTrack);
 
         }
 
@@ -1184,42 +1187,50 @@ namespace dvdrip
 
         private tmdbTVSearchResult GetTvSearchResults()
         {
-            StringBuilder requestUrl = new StringBuilder();
-            //https://api.themoviedb.org/3/search/tv?api_key=1abe04137ccd4fa521cb5f8e337b9418&language=en-US&query=The%20West%20Wing&page=1
-            requestUrl.Append("https://api.themoviedb.org/3/search/tv?api_key=");
-            requestUrl.Append(tmdbApiKey);
-            requestUrl.Append("&language=en-US&query=");
-            requestUrl.Append(discName);
-            requestUrl.Append("&page=1");
-            Uri requestUri = new Uri(requestUrl.ToString());
-            WebRequest request = WebRequest.Create(requestUri.ToString());
+            if (discName != null && discName.Length > 0)
+            {
+                StringBuilder requestUrl = new StringBuilder();
+                //https://api.themoviedb.org/3/search/tv?api_key=1abe04137ccd4fa521cb5f8e337b9418&language=en-US&query=The%20West%20Wing&page=1
+                requestUrl.Append("https://api.themoviedb.org/3/search/tv?api_key=");
+                requestUrl.Append(tmdbApiKey);
+                requestUrl.Append("&language=en-US&query=");
+                requestUrl.Append(discName);
+                requestUrl.Append("&page=1");
+                Uri requestUri = new Uri(requestUrl.ToString());
+                WebRequest request = WebRequest.Create(requestUri.ToString());
 
-            WebResponse response = request.GetResponse();
-            Stream dataStream = response.GetResponseStream();
-            StreamReader reader = new StreamReader(dataStream);
-            string text = reader.ReadToEnd();
-            tmdbTVSearchResult searchResult = JsonConvert.DeserializeObject<tmdbTVSearchResult>(text);
-            return searchResult;
+                WebResponse response = request.GetResponse();
+                Stream dataStream = response.GetResponseStream();
+                StreamReader reader = new StreamReader(dataStream);
+                string text = reader.ReadToEnd();
+                tmdbTVSearchResult searchResult = JsonConvert.DeserializeObject<tmdbTVSearchResult>(text);
+                return searchResult;
+            }
+            else return null;
         }
 
         private tmdbMovieSearchResult GetMovieSearchResults()
         {
-            StringBuilder requestUrl = new StringBuilder();
-            //https://api.themoviedb.org/3/search/movie?api_key=1abe04137ccd4fa521cb5f8e337b9418&language=en-US&query=Havana%20Nights&page=1&include_adult=false
-            requestUrl.Append("https://api.themoviedb.org/3/search/movie?api_key=");
-            requestUrl.Append(tmdbApiKey);
-            requestUrl.Append("&language=en-US&query=");
-            requestUrl.Append(discName);
-            requestUrl.Append("&page=1&include_adult=false");
-            Uri requestUri = new Uri(requestUrl.ToString());
-            WebRequest request = WebRequest.Create(requestUri.ToString());
+            if (discName != null && discName.Length > 0)
+            {
+                StringBuilder requestUrl = new StringBuilder();
+                //https://api.themoviedb.org/3/search/movie?api_key=1abe04137ccd4fa521cb5f8e337b9418&language=en-US&query=Havana%20Nights&page=1&include_adult=false
+                requestUrl.Append("https://api.themoviedb.org/3/search/movie?api_key=");
+                requestUrl.Append(tmdbApiKey);
+                requestUrl.Append("&language=en-US&query=");
+                requestUrl.Append(discName);
+                requestUrl.Append("&page=1&include_adult=false");
+                Uri requestUri = new Uri(requestUrl.ToString());
+                WebRequest request = WebRequest.Create(requestUri.ToString());
 
-            WebResponse response = request.GetResponse();
-            Stream dataStream = response.GetResponseStream();
-            StreamReader reader = new StreamReader(dataStream);
-            string text = reader.ReadToEnd();
-            tmdbMovieSearchResult searchResult = JsonConvert.DeserializeObject<tmdbMovieSearchResult>(text);
-            return searchResult;
+                WebResponse response = request.GetResponse();
+                Stream dataStream = response.GetResponseStream();
+                StreamReader reader = new StreamReader(dataStream);
+                string text = reader.ReadToEnd();
+                tmdbMovieSearchResult searchResult = JsonConvert.DeserializeObject<tmdbMovieSearchResult>(text);
+                return searchResult;
+            }
+            else return null;
         }
 
         private void getDetailedMovieInfo(tmdbMovieResult _selectedTitle)
@@ -1502,6 +1513,7 @@ namespace dvdrip
         public String pathToRip { get; set; }
         public String pathToCompression { get; set; }
         public Boolean isTV { get; set; }
+        public String rippedMKVTitle { get; set; }
         public int tvSeason { get; set; }
         public int tvEpisode { get; set; }
         public string tvShowTitle { get; set; }
@@ -1523,6 +1535,7 @@ namespace dvdrip
     {
         public string length { get; set; }
         public float size { get; set; }
+        public string title { get; set; }
     }
 
     public class tmdbTVSearchResult
