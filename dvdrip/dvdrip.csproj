@@ -83,6 +83,9 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="DataModels.cs" />
+    <Compile Include="WorkerThreads.cs" />
+    <Compile Include="XamlBindingHelpers.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
