@@ -372,9 +372,11 @@
                                 <Label FontWeight="Bold" Content="Title:"/>
                                 <Label x:Name="lblSelectedTitle" Content=""/>
                                 <Label FontWeight="Bold" Content="Description:"/>
-                                <TextBlock x:Name="lblSelectedDescription" TextWrapping="Wrap"
-                                       MaxWidth="560" Foreground="Black"/>
-                                <Image x:Name="imgSelectedItemPoster" Width="185" Height="278"/>
+                                <ScrollViewer Margin="10,0" Height="70" MaxHeight="70">
+                                    <TextBlock x:Name="lblSelectedDescription" TextWrapping="Wrap"
+                                       MaxWidth="560" Foreground="Black" />
+                                </ScrollViewer>
+                                <Image x:Name="imgSelectedItemPoster" Margin="0,10" Width="185" Height="278"/>
                             </StackPanel>
                         </DockPanel>
                         <DockPanel LastChildFill="True" VerticalAlignment="Bottom" Margin="0,10,0,0">
