@@ -1016,13 +1016,16 @@ namespace dvdrip
         private void RipHyperlink_Click(object sender, RoutedEventArgs e)
         {
            QueuedItem thisItem = (QueuedItem)((Hyperlink)sender).DataContext;
-            System.Diagnostics.Process.Start(thisItem.failedRipTextFile);
+            //System.Diagnostics.Process.Start(thisItem.failedRipTextFile);
         }
 
         private void CompressHyperlink_Click(object sender, RoutedEventArgs e)
         {
             QueuedItem thisItem = (QueuedItem)((Hyperlink)sender).DataContext;
-            System.Diagnostics.Process.Start(thisItem.failedCompressTextFile);
+            //System.Diagnostics.Process.Start(thisItem.failedCompressTextFile);
+            string windowTitle = "Compression failed: " + thisItem.title;
+            var errorWindow = new MessageDisplay(windowTitle, thisItem.failedCompressText.ToString());
+            errorWindow.ShowDialog();
         }
     }
 

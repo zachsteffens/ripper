@@ -27,6 +27,7 @@ using System.Windows.Threading;
 using System.Runtime.InteropServices;
 using System.Globalization;
 using System.Runtime.Serialization;
+using System.Threading;
 
 namespace dvdrip
 {
@@ -81,35 +82,72 @@ namespace dvdrip
 
             try
             {
-
-                // Start the child process.
-                Process p = new Process();
-                // Redirect the output stream of the child process.
-                p.StartInfo.UseShellExecute = false;
-
-                p.StartInfo.RedirectStandardOutput = true;
-                p.OutputDataReceived += new DataReceivedEventHandler(MyProcOutputHandler);
-                p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
-                p.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
-                p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                p.StartInfo.CreateNoWindow = true;
-                Stopwatch ripStopwatch = new Stopwatch();
-                ripStopwatch.Start();
-                p.Start();
-                // Do not wait for the child process to exit before
-                // reading to the end of its redirected stream.
-                // p.WaitForExit();
-                // Read the output stream first and then wait.
-
-                string output = p.StandardOutput.ReadToEnd();
-                p.WaitForExit();
-                ripStopwatch.Stop();
-                //if it finished in less than 3 minutes throw exception
-                if (ripStopwatch.ElapsedMilliseconds < 10000)
+                int timeoutMiliseconds = 1000 * 60 * 60 * 12; // 12 hours
+                using (AutoResetEvent outputWaitHandle = new AutoResetEvent(false))
+                using (AutoResetEvent errorWaitHandle = new AutoResetEvent(false))
                 {
-                    throw new ShortTimeElpasedException(output, null);
+                    using (Process process = new Process())
+                    {
+                        process.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
+                        process.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
+                        process.StartInfo.UseShellExecute = false;
+                        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                        process.StartInfo.CreateNoWindow = true;
+
+                        process.StartInfo.RedirectStandardOutput = true;
+                        process.StartInfo.RedirectStandardError = true;
+
+                        StringBuilder output = new StringBuilder();
+                        StringBuilder error = new StringBuilder();
+
+
+                        process.OutputDataReceived += (sender, e) =>
+                        {
+                            if (e.Data == null)
+                            {
+                                outputWaitHandle.Set();
+                            }
+                            else
+                            {
+                                output.AppendLine(e.Data);
+                            }
+                        };
+                        process.ErrorDataReceived += (sender, e) =>
+                        {
+                            if (e.Data == null)
+                            {
+                                errorWaitHandle.Set();
+                            }
+                            else
+                            {
+                                error.AppendLine(e.Data);
+                            }
+                        };
+
+                        process.Start();
+
+                        process.BeginOutputReadLine();
+                        process.BeginErrorReadLine();
+
+                        if (process.WaitForExit(timeoutMiliseconds) &&
+                            outputWaitHandle.WaitOne(timeoutMiliseconds) &&
+                            errorWaitHandle.WaitOne(timeoutMiliseconds))
+                        {
+                            if (process.ExitCode != 0)
+                            {
+                                output.AppendLine("-----------------------------error--------------------------");
+                                output.Append(error.ToString());
+                                itemToRip.failedRipText = output;
+                                itemToRip.failedRip = true;
+                            }
+                        }
+                        else
+                        {
+                            // Timed out.
+                            //shouldnt ever happen. timeout is set to 12 hours.
+                        }
+                    }
                 }
-                //string rippedTitle = Directory.GetFiles(pathToCreateFiles)[0];
                 string rippedTitle = itemToRip.fullPath + "\\" + itemToRip.rippedMKVTitle;
                 //renames the ripped mkv track to the name specified in the previous step
                 itemToRip.pathToRip = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_rip.mkv";
@@ -125,10 +163,10 @@ namespace dvdrip
             }
             catch (Exception e)
             {
-                string ripFailOutput = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_ripFailure.txt";
-                File.WriteAllText(ripFailOutput, e.Message);
+                
+                StringBuilder errormessage = new StringBuilder(e.InnerException.ToString());
+                itemToRip.failedRipText = errormessage;
                 itemToRip.failedRip = true;
-                itemToRip.failedRipTextFile = ripFailOutput;
             }
 
             return "";
@@ -136,44 +174,84 @@ namespace dvdrip
 
         private String CompressWithHandbrake(QueuedItem item)
         {
-            string output = "";
+            
             try
             {
-                // Start the child process.
-                Process p = new Process();
-                // Redirect the output stream of the child process.
-                p.StartInfo.UseShellExecute = false;
-
-                p.StartInfo.RedirectStandardOutput = true;
-                p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Handbrake\\HandBrakeCLI.exe";
-                p.StartInfo.Arguments = "-e x264  -q 20.0 -a 1 -E ffaac,copy:ac3 -B 160 -6 dpl2 -R Auto -D 0.0 --audio-copy-mask aac,ac3,dtshd,dts,mp3 --audio-fallback ffac3 -f av_mkv --auto-anamorphic --denoise medium -m --x264-preset veryslow --x264-tune film --h264-profile high --h264-level 3.1 --subtitle scan --subtitle-forced --subtitle-burned -i \"" + item.pathToRip + "\" -o \"" + item.pathToCompression + "\"";
-                p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-                p.StartInfo.CreateNoWindow = true;
-                Stopwatch compressStopwatch = new Stopwatch();
-                compressStopwatch.Start();
-                p.Start();
-                // Do not wait for the child process to exit before
-                // reading to the end of its redirected stream.
-                // p.WaitForExit();
-                // Read the output stream first and then wait.
-                output = p.StandardOutput.ReadToEnd();
-                p.WaitForExit();
-                compressStopwatch.Stop();
-
-                if (compressStopwatch.ElapsedMilliseconds < 180000)
+                int timeoutMiliseconds = 1000 * 60 * 60 * 12; // 12 hours
+                using (AutoResetEvent outputWaitHandle = new AutoResetEvent(false))
+                using (AutoResetEvent errorWaitHandle = new AutoResetEvent(false))
                 {
-                    throw new ShortTimeElpasedException(output, null);
+                    using (Process process = new Process())
+                    {
+                        process.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles) + "\\Handbrake\\HandBrakeCLI.exe";
+                        process.StartInfo.Arguments = "-e x264  -q 20.0 -a 1 -E ffaac,copy:ac3 -B 160 -6 dpl2 -R Auto -D 0.0 --audio-copy-mask aac,ac3,dtshd,dts,mp3 --audio-fallback ffac3 -f av_mkv --auto-anamorphic --denoise medium -m --x264-preset veryslow --x264-tune film --h264-profile high --h264-level 3.1 --subtitle scan --subtitle-forced --subtitle-burned -i \"" + item.pathToRip + "\" -o \"" + item.pathToCompression + "\"";
+                        process.StartInfo.UseShellExecute = false;
+                        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                        process.StartInfo.CreateNoWindow = true;
+                        process.StartInfo.RedirectStandardOutput = true;
+                        process.StartInfo.RedirectStandardError = true;
+
+                        StringBuilder output = new StringBuilder();
+                        StringBuilder error = new StringBuilder();
+
+                   
+                        process.OutputDataReceived += (sender, e) => {
+                            if (e.Data == null)
+                            {
+                                outputWaitHandle.Set();
+                            }
+                            else
+                            {
+                                output.AppendLine(e.Data);
+                            }
+                        };
+                        process.ErrorDataReceived += (sender, e) =>
+                        {
+                            if (e.Data == null)
+                            {
+                                errorWaitHandle.Set();
+                            }
+                            else
+                            {
+                                error.AppendLine(e.Data);
+                            }
+                        };
+
+                        process.Start();
+
+                        process.BeginOutputReadLine();
+                        process.BeginErrorReadLine();
+
+                        if (process.WaitForExit(timeoutMiliseconds) &&
+                            outputWaitHandle.WaitOne(timeoutMiliseconds) &&
+                            errorWaitHandle.WaitOne(timeoutMiliseconds))
+                        {
+                            if(process.ExitCode != 0)
+                            {
+                                output.AppendLine("-----------------------------error--------------------------");
+                                output.Append(error.ToString());
+                                item.failedCompressText = output;
+                                item.failedCompression = true;
+                            }
+                            
+
+                        }
+                        else
+                        {
+                            // Timed out.
+                            //shouldnt ever happen. timeout is set to 12 hours.
+                        }
+                    }
                 }
             }
             catch (Exception e)
             {
-                string compressFailOutput = System.IO.Path.Combine(item.fullPath, item.title) + "_compressionFailure.txt";
-                File.WriteAllText(compressFailOutput, output);
-                item.failedCompressTextFile = compressFailOutput;
+                StringBuilder errormessage = new StringBuilder(e.InnerException.ToString());
+                item.failedCompressText = errormessage;
                 item.failedCompression = true;
             }
-
-            return output;
+            
+            return "";
         }
 
         private void ripDiscThread(object sender, DoWorkEventArgs e)

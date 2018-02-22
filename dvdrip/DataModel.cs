@@ -36,8 +36,8 @@ namespace dvdrip
         public int tvSeason { get; set; }
         public int tvEpisode { get; set; }
         public string tvShowTitle { get; set; }
-        public string failedRipTextFile { get; set; }
-        public string failedCompressTextFile { get; set; }
+        public StringBuilder failedRipText { get; set; }
+        public StringBuilder failedCompressText { get; set; }
     }
     public class Disc
     {
