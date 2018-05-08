@@ -490,7 +490,7 @@ namespace dvdrip
             suggestedMovieTitle.Append(")");
 
             txtRipLocation.Text = suggestedMovieBasePath;
-            lblFullPath.Content = txtRipLocation.Text + getDirectorySafeString(suggestedMovieTitle.ToString());
+            lblFullPath.Content = txtRipLocation.Text + "\\" + getDirectorySafeString(suggestedMovieTitle.ToString());
             
 
 #if TESTINGNODISC
@@ -524,12 +524,12 @@ namespace dvdrip
                 if (timeTrackSelect == TimeSpan.Zero)
                 {
                     //go to next step.
-                    addMovieToQueue();
+                    //addMovieToQueue();
                 }
                 timeTrackSelect = timeTrackSelect.Add(TimeSpan.FromSeconds(-1));
             }, Application.Current.Dispatcher);
 
-            timerTrackSelect.Start();
+            //timerTrackSelect.Start();
 
         }
 
@@ -625,24 +625,26 @@ namespace dvdrip
         private void addMovieToQueue()
         {
             timerTrackSelect.Stop();
-           
-            string fullPath = lblFullPath.Content.ToString();
 
-            StringBuilder suggestedMovieTitle = new StringBuilder();
-            suggestedMovieTitle.Append(selectedMovieDetails.title);
-            suggestedMovieTitle.Append(" (");
-            suggestedMovieTitle.Append(selectedMovieDetails.release_date.Split('-')[0]);
-            suggestedMovieTitle.Append(")");
-            string title = getDirectorySafeString(suggestedMovieTitle.ToString());
-                       
-            string selectedTrackIndex = grdTracks.SelectedIndex.ToString();
-            track selectedTrack = (track)grdTracks.SelectedItem;
-            QueuedItem toAdd = new QueuedItem(fullPath, title, selectedTrackIndex);
-            toAdd.rippedMKVTitle = selectedTrack.title;
-            queuedItems.Add(toAdd);
-            waitingToRip.Add(toAdd);
-            StartOver();
-            
+            if (grdTracks.SelectedItem != null)
+            {
+                string fullPath = lblFullPath.Content.ToString();
+
+                StringBuilder suggestedMovieTitle = new StringBuilder();
+                suggestedMovieTitle.Append(selectedMovieDetails.title);
+                suggestedMovieTitle.Append(" (");
+                suggestedMovieTitle.Append(selectedMovieDetails.release_date.Split('-')[0]);
+                suggestedMovieTitle.Append(")");
+                string title = getDirectorySafeString(suggestedMovieTitle.ToString());
+
+                string selectedTrackIndex = grdTracks.SelectedIndex.ToString();
+                track selectedTrack = (track)grdTracks.SelectedItem;
+                QueuedItem toAdd = new QueuedItem(fullPath, title, selectedTrackIndex);
+                toAdd.rippedMKVTitle = selectedTrack.title;
+                queuedItems.Add(toAdd);
+                waitingToRip.Add(toAdd);
+                StartOver();
+            }
         }
         
         private string getDirectorySafeString(string original)
