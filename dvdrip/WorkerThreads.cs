@@ -163,10 +163,14 @@ namespace dvdrip
             }
             catch (Exception e)
             {
+                if(e.InnerException != null)
+                {
+                    StringBuilder errormessage = new StringBuilder(e.InnerException.ToString());
+                    itemToRip.failedRipText = errormessage;
+                    itemToRip.failedRip = true;
+                }
+
                 
-                StringBuilder errormessage = new StringBuilder(e.InnerException.ToString());
-                itemToRip.failedRipText = errormessage;
-                itemToRip.failedRip = true;
             }
 
             return "";
