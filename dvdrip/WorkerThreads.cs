@@ -38,6 +38,14 @@ namespace dvdrip
         {
         }
     }
+
+    public class MakeMKVUpdateAvailableException : System.Exception
+    {
+        public MakeMKVUpdateAvailableException(string message, 
+            Exception innerException) : base(message,innerException)
+        { }
+    }
+
     public class FileIOException : System.Exception
     {
         public FileIOException(string message,
@@ -65,6 +73,7 @@ namespace dvdrip
             if (!String.IsNullOrEmpty(outLine.Data))
             {
                 Debug.WriteLine(outLine.Data);
+                
             }
         }
 
@@ -73,7 +82,7 @@ namespace dvdrip
 
             ////remove the directory if it exists
             string pathToCreateFiles = System.IO.Path.GetFullPath(itemToRip.fullPath);
-
+            StringBuilder ripMkvOutput;
             //try { Directory.Delete(pathToCreateFiles, true); }
             //catch (Exception e) { }
 
@@ -82,72 +91,35 @@ namespace dvdrip
 
             try
             {
-                int timeoutMiliseconds = 1000 * 60 * 60 * 12; // 12 hours
-                using (AutoResetEvent outputWaitHandle = new AutoResetEvent(false))
-                using (AutoResetEvent errorWaitHandle = new AutoResetEvent(false))
+                ripMkvOutput = new StringBuilder();
+
+                using (Process process = new Process())
                 {
-                    using (Process process = new Process())
+                    process.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
+                    process.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.OutputDataReceived += new DataReceivedEventHandler
+                    (
+                        delegate (object sender, DataReceivedEventArgs e)
+                        {
+                            // append the new data to the data already read-in
+                            ripMkvOutput.Append(e.Data);
+                            Debug.WriteLine(e.Data);
+                        }
+                    );
+                    process.Start();
+                    process.BeginOutputReadLine();
+                    process.WaitForExit();
+                    process.CancelOutputRead();
+                    string result = ripMkvOutput.ToString();
+                    if(result.Contains("0 titles saved"))
                     {
-                        process.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
-                        process.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
-                        process.StartInfo.UseShellExecute = false;
-                        process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                        process.StartInfo.CreateNoWindow = true;
-
-                        process.StartInfo.RedirectStandardOutput = true;
-                        process.StartInfo.RedirectStandardError = true;
-
-                        StringBuilder output = new StringBuilder();
-                        StringBuilder error = new StringBuilder();
-
-
-                        process.OutputDataReceived += (sender, e) =>
-                        {
-                            if (e.Data == null)
-                            {
-                                outputWaitHandle.Set();
-                            }
-                            else
-                            {
-                                output.AppendLine(e.Data);
-                            }
-                        };
-                        process.ErrorDataReceived += (sender, e) =>
-                        {
-                            if (e.Data == null)
-                            {
-                                errorWaitHandle.Set();
-                            }
-                            else
-                            {
-                                error.AppendLine(e.Data);
-                            }
-                        };
-
-                        process.Start();
-
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-
-                        if (process.WaitForExit(timeoutMiliseconds) &&
-                            outputWaitHandle.WaitOne(timeoutMiliseconds) &&
-                            errorWaitHandle.WaitOne(timeoutMiliseconds))
-                        {
-                            if (process.ExitCode != 0)
-                            {
-                                output.AppendLine("-----------------------------error--------------------------");
-                                output.Append(error.ToString());
-                                itemToRip.failedRipText = output;
-                                itemToRip.failedRip = true;
-                            }
-                        }
-                        else
-                        {
-                            // Timed out.
-                            //shouldnt ever happen. timeout is set to 12 hours.
-                        }
+                        throw new Exception("failed rip", new Exception(result));
                     }
+
                 }
+                
                 string rippedTitle = itemToRip.fullPath + "\\" + itemToRip.rippedMKVTitle;
                 //renames the ripped mkv track to the name specified in the previous step
                 itemToRip.pathToRip = System.IO.Path.Combine(itemToRip.fullPath, itemToRip.title) + "_rip.mkv";

@@ -736,32 +736,60 @@ namespace dvdrip
 
         private String getDetailedDiscInfo()
         {
+            StringBuilder detailedDiscInfoOutput;
             //////hardcoded return disc info
             //return discInfoHardCode;
+            try
+            {
+                // Start the child process.
+                Process p = new Process();
+                detailedDiscInfoOutput = new StringBuilder();
+                // Redirect the output stream of the child process.
+                p.StartInfo.UseShellExecute = false;
+                p.OutputDataReceived += new DataReceivedEventHandler
+                    (
+                        delegate (object sender, DataReceivedEventArgs e)
+                        {
+                            // append the new data to the data already read-in
+                            detailedDiscInfoOutput.Append(e.Data);
+                        }
+                    );
+                //p.OutputDataReceived += (sender, args) => Debug.WriteLine("received output: {0}", args.Data);
+                p.StartInfo.RedirectStandardOutput = true;
+                p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
+                p.StartInfo.Arguments = "-r info disc:0";
+                p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
+                p.StartInfo.CreateNoWindow = true;
+                p.Start();
+                //p.BeginOutputReadLine();
+                string output =  p.StandardOutput.ReadToEnd();
+                p.WaitForExit();
+                //p.CancelOutputRead();
+                //string output = detailedDiscInfoOutput.ToString();
+                if(output.Contains("This application version is too old"))
+                {
+                    throw new MakeMKVUpdateAvailableException("updateAvailable", new Exception());
+                }
+                //TODO: Zach
+                //if output contains - then notify but dont fail
+                //"available for download"
+                return output;
+            } catch (MakeMKVUpdateAvailableException ex)
+            {
+
+                MessageBox.Show("Please download the new version of MakeMKV and apply an updated license key. The application will launch these sites, please shut down and reinstall MakeMKV", "Can not continue",
+                    MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK);
+                
+                System.Diagnostics.Process.Start("https://www.makemkv.com/download/");
+                System.Diagnostics.Process.Start("https://www.makemkv.com/forum2/viewtopic.php?f=5&t=1053");
+                
+            }
+            catch (Exception ex)
+            {
+
+            }
+            return "";
             
-            // Start the child process.
-            Process p = new Process();
-            // Redirect the output stream of the child process.
-            p.StartInfo.UseShellExecute = false;
-            p.OutputDataReceived += new DataReceivedEventHandler(MyProcOutputHandler);
-            p.StartInfo.RedirectStandardOutput = true;
-            p.StartInfo.FileName = System.Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86) + "\\MakeMKV\\makemkvcon64.exe";
-            p.StartInfo.Arguments = "-r info disc:0";
-            p.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden;
-            p.StartInfo.CreateNoWindow = true;
-            p.Start();
-            // Do not wait for the child process to exit before
-            // reading to the end of its redirected stream.
-            // p.WaitForExit();
-            // Read the output stream first and then wait.
-            //p.BeginOutputReadLine();
-            string output = p.StandardOutput.ReadToEnd();
-            p.WaitForExit();
-            
-            //TODO: Zach
-            //if output contains - then notify but dont fail
-            //"available for download"
-            return output;
         }
 
         private void ParseDiscInfo(string discInfo)
