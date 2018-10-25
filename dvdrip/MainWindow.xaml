@@ -390,7 +390,7 @@
                 </TabItem>
                 <TabItem x:Name="tabSelectMovieTrack"  Header="Select Track" Template="{DynamicResource TabItemControlTemplate1}" FontSize="14" IsEnabled="false">
                     <DockPanel LastChildFill="True" Margin="0,0,0,20">
-                        <StackPanel DockPanel.Dock="Top" Orientation="Vertical" Margin="0,10,0,0">
+                        <StackPanel DockPanel.Dock="Top" Orientation="Vertical" Margin="0,10,0,0" MaxHeight="553" Height="553">
                             <Label FontSize="15" FontWeight="Bold" Content="Selected Movie Details" BorderBrush="Black" BorderThickness="0,0,0 1"/>
                             <StackPanel Orientation="Horizontal" Margin="30,0,0,0">
                                 <Label FontStyle="Italic" FontWeight="Bold" Content="Title:"/>

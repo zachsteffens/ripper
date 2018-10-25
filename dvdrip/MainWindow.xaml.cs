@@ -1057,6 +1057,7 @@ namespace dvdrip
             var errorWindow = new MessageDisplay(windowTitle, thisItem.failedCompressText.ToString());
             errorWindow.ShowDialog();
         }
+
     }
 
 

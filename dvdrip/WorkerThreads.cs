@@ -99,7 +99,12 @@ namespace dvdrip
                     process.StartInfo.Arguments = "mkv disc:0 " + itemToRip.selectedTrackIndex + " \"" + itemToRip.fullPath + "\"";
                     process.StartInfo.UseShellExecute = false;
                     process.StartInfo.RedirectStandardOutput = true;
+                    process.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    process.StartInfo.CreateNoWindow = true;
+
                     process.OutputDataReceived += new DataReceivedEventHandler
+
+                    
                     (
                         delegate (object sender, DataReceivedEventArgs e)
                         {
