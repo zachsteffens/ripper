@@ -132,6 +132,7 @@ namespace dvdrip
                 try
                 { 
                     System.IO.File.Move(rippedTitle, itemToRip.pathToRip);
+                    
                 }
                 catch (Exception e)
                 {
@@ -310,6 +311,23 @@ namespace dvdrip
 #else
                     CompressWithHandbrake(thisItem);
 
+                    //validate compression with nreco
+                    try
+                    {
+                        var ffProbe = new NReco.VideoInfo.FFProbe();
+                        var videoInfo = ffProbe.GetMediaInfo(thisItem.pathToCompression);
+                        Console.WriteLine(videoInfo.FormatName);
+                    }
+                    catch(Exception ex)
+                    {
+                        StringBuilder errormessage = new StringBuilder(ex.InnerException.ToString());
+                        thisItem.failedCompressText = errormessage;
+                        thisItem.failedCompression = true;
+                    }
+
+
+
+
 #endif
                     System.Diagnostics.Debug.WriteLine("compression of " + thisItem.title + " complete");
                     thisItem.compressing = false;
@@ -345,7 +363,9 @@ namespace dvdrip
                     waitingToCopy.RemoveAt(0);
 
                     QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCopy.title).FirstOrDefault();
-                    thisItem.copying = true;
+                    
+
+                        thisItem.copying = true;
                     System.Diagnostics.Debug.WriteLine("Start copying " + thisItem.title);
                     await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
                     {
@@ -390,13 +410,25 @@ namespace dvdrip
 #if TESTINGNODISC
                         System.Threading.Thread.Sleep(20000);
 #else
+                        //generate md5 checksum of original
+                        string originalMD5 = getMD5Hash(thisItem.pathToCompression);
+                        
                         File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
-                        //File.Delete(thisItem.pathToRip);
-                        //File.Delete(thisItem.pathToCompression);
+
+                        string copiedMD5 = getMD5Hash(copyToPath.ToString());
+
+                        if ( originalMD5 != copiedMD5)
+                        {
+                            throw new Exception("hashes dont match");
+                        }
+                        File.Delete(thisItem.pathToRip);
+                        File.Delete(thisItem.pathToCompression);
+                        Directory.Delete(thisItem.fullPath);
+                        
 #endif
                         thisItem.copying = false;
                         thisItem.copied = true;
-                        //thisItem.removed = true;
+                        thisItem.removed = true;
                     }
                     catch (Exception)
                     {
@@ -413,6 +445,21 @@ namespace dvdrip
                     currentlyCopying = false;
                 }
             }
+        }
+
+        private string getMD5Hash(string filePath)
+        {
+            //generate md5 checksum of original
+            string hash = filePath;
+            using (var md5 = System.Security.Cryptography.MD5.Create())
+            {
+                using (var stream = File.OpenRead(filePath))
+                {
+                    byte[] hashBytes = md5.ComputeHash(stream);
+                    hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+                }
+            }
+            return hash;
         }
     }
 }
