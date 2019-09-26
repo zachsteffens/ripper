@@ -430,9 +430,10 @@ namespace dvdrip
                         thisItem.copied = true;
                         thisItem.removed = true;
                     }
-                    catch (Exception)
+                    catch (Exception deleteFailed)
                     {
                         thisItem.failedCopy = true;
+                        Debug.Write(deleteFailed.InnerException);
                     }
 
                     System.Diagnostics.Debug.WriteLine("copy of " + thisItem.title + " complete");
