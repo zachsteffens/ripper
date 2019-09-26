@@ -7,7 +7,7 @@
         xmlns:local="clr-namespace:dvdrip"
         xmlns:Forms="clr-namespace:System.Windows.Forms;assembly=System.Windows.Forms" x:Class="dvdrip.MainWindow"
         mc:Ignorable="d"
-        Title="DVD Backup" Height="890" Width="1000">
+        Title="DVD Backup" Height="900" Width="1008" MinHeight="900" MinWidth="1008">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -258,13 +258,13 @@
             completeDataTemplate="{StaticResource completeDataTemplate}"
             waitingTextDataTemplate="{StaticResource waitingTextDataTemplate}"
             failedRipDataTemplate="{StaticResource failedRipDataTemplate}"/>
-           
+
             <local:compressingDataTemplateSelector x:Key="compressTemplateSelector"
             progressBarDataTemplate="{StaticResource progressBarDataTemplate}"
             completeDataTemplate="{StaticResource completeDataTemplate}"
             waitingTextDataTemplate="{StaticResource waitingTextDataTemplate}"
             failedCompressDataTemplate="{StaticResource failedCompressDataTemplate}"/>
-            
+
             <local:copyingDataTemplateSelector x:Key="copyTemplateSelector"
             progressBarDataTemplate="{StaticResource progressBarDataTemplate}"
             completeDataTemplate="{StaticResource completeDataTemplate}"
@@ -272,42 +272,9 @@
         </ResourceDictionary>
 
     </Window.Resources>
-    <Grid>
+    <Grid MinWidth="992" MinHeight="859">
         <DockPanel LastChildFill="True" Background="#FFB4B8C5">
-            <!--Right Sidebar-->
-            <StackPanel Orientation="Vertical" DockPanel.Dock="Bottom" Height="200" >
-                <DockPanel Margin="10,10,10,0" LastChildFill="True">
-                    <Label DockPanel.Dock="Left" Content="In Progress" FontWeight="ExtraBold"/>
-                    <Button DockPanel.Dock="Right" x:Name="btnClearCompleted" Content="Clear Completed" Style="{StaticResource BlueButton}" Click="btnClearCompleted_Click" />
-                    <Label />
-                </DockPanel>
-                <Grid>
-                    <ListView Margin="10" x:Name="lvInProgress">
-                        <ListView.View>
-                            <GridView ColumnHeaderContainerStyle="{StaticResource lvColumnHeaders}">
-                                <GridViewColumn Header="Title" Width="280" DisplayMemberBinding="{Binding title}" />
-                                <GridViewColumn Header="Ripped" Width="70" CellTemplateSelector="{StaticResource ripTemplateSelector}"/>
-                                <GridViewColumn Header="Compressed" Width="90" CellTemplateSelector="{StaticResource compressTemplateSelector}"/>
-                                <GridViewColumn Header="Copied" Width="90" CellTemplateSelector="{StaticResource copyTemplateSelector}"/>
-                                <GridViewColumn Header="Cleaned" Width="90" DisplayMemberBinding="{Binding removed}"/>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
-                </Grid>
-            </StackPanel>
-
-            <!--<Grid>
-                <Grid Name="grdWaitingForDisc" Visibility="Collapsed">
-                   
-                    <ProgressBar Name="prgLoadingDisc" IsIndeterminate="true" Height="10" Visibility="Collapsed" VerticalAlignment="Center" Width="400"  Margin="0,0,0,40" HorizontalAlignment="Center"/>
-                </Grid>
-                <Grid Name="grdSearchingForTitle" Background="White" Margin="0,10,0,0" Visibility="Visible">
-                   
-                </Grid>
-                
-            </Grid>-->
-            <!--Left Content-->
-            <TabControl x:Name="tabControlMain" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinWidth="980" Height="650" Margin="5">
+            <TabControl x:Name="tabControlMain" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MinWidth="980" Height="650" Margin="5" DockPanel.Dock="Top">
                 <TabItem x:Name="tabSearchForTitle" Header="Select Title"  Template="{DynamicResource TabItemControlTemplate1}" FontSize="14" IsEnabled="False">
                     <StackPanel Orientation="Vertical">
                         <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
@@ -551,7 +518,34 @@
                     </DockPanel>
                 </TabItem>
             </TabControl>
-
+            <DockPanel LastChildFill="True">
+                <DockPanel Margin="10,10,10,0" LastChildFill="True" Height="24" DockPanel.Dock="Top" HorizontalAlignment="Stretch">
+                    <Label DockPanel.Dock="Left" Content="In Progress" FontWeight="ExtraBold"/>
+                    <Button DockPanel.Dock="Right" x:Name="btnClearCompleted" Content="Clear Completed" Style="{StaticResource BlueButton}" Click="btnClearCompleted_Click" />
+                    <Label />
+                </DockPanel>
+                <Grid DockPanel.Dock="Bottom">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="37*"/>
+                        <ColumnDefinition Width="87*"/>
+                    </Grid.ColumnDefinitions>
+                    <ListView Margin="10,10,10,10" x:Name="lvInProgress" ScrollViewer.VerticalScrollBarVisibility="Auto" Grid.ColumnSpan="2">
+                        <ListView.View>
+                            <GridView ColumnHeaderContainerStyle="{StaticResource lvColumnHeaders}">
+                                <GridViewColumn Header="Title" Width="280" DisplayMemberBinding="{Binding title}" />
+                                <GridViewColumn Header="Ripped" Width="70" CellTemplateSelector="{StaticResource ripTemplateSelector}"/>
+                                <GridViewColumn Header="Compressed" Width="90" CellTemplateSelector="{StaticResource compressTemplateSelector}"/>
+                                <GridViewColumn Header="Copied" Width="90" CellTemplateSelector="{StaticResource copyTemplateSelector}"/>
+                                <GridViewColumn Header="Cleaned" Width="90" DisplayMemberBinding="{Binding removed}"/>
+                            </GridView>
+                        </ListView.View>
+                    </ListView>
+                </Grid>
+            </DockPanel>
+            
+                
+                
+           
         </DockPanel>
 
 
