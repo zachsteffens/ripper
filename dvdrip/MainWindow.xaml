@@ -287,7 +287,7 @@
                                       Checked="chkIsTV_Checked" Unchecked="chkIsTV_Checked" Content="Is this a TV Show?"/>
                         </StackPanel>
                         <DockPanel Height="512">
-                            <ListView DockPanel.Dock="Left" x:Name="grdMovieSearchResults" Margin="10,0,0,0"
+                            <ListView DockPanel.Dock="Left" x:Name="grdMovieSearchResults" ScrollViewer.VerticalScrollBarVisibility="Auto" Margin="10,0,0,0"
                                   BorderBrush="#116A8C"
                                   Width="400" SelectionChanged="grdSearchResults_SelectionChanged">
                                 <ListView.ItemContainerStyle>
@@ -375,10 +375,11 @@
                                 </StackPanel>
                                 <DockPanel x:Name="dockTrackInfo">
                                     <ListView x:Name="grdTracks" 
-                                    DockPanel.Dock="Left"
-                                    Margin="10,0,0,0" HorizontalAlignment="Left"
+                                        ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                        DockPanel.Dock="Left"
+                                        Margin="10,0,0,0" HorizontalAlignment="Left"
                                         ItemsSource="{Binding}"
-                                        Width="400" SelectionChanged="grdTracks_SelectionChanged">
+                                        Width="400" SelectionChanged="grdTracks_SelectionChanged" Height="441">  
                                         <ListView.ItemContainerStyle>
                                             <Style TargetType="{x:Type ListViewItem}">
                                                 <Setter Property="IsSelected" Value="{Binding selectedTrack}"/>

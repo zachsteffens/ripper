@@ -98,6 +98,8 @@ namespace dvdrip
         private static bool isCopyThreadRunning;
         static BackgroundWorker copyWorker;
 
+        private NotifyMQTT notifier;
+
         private object lockObj;
 
         #endregion
@@ -116,6 +118,7 @@ namespace dvdrip
             Debug.WriteLine("app started");
 
             StartOver();
+            notifier = new NotifyMQTT();
             lockObj = new object();
             matchingMovies = new ObservableCollection<tmdbMovieResult>();
             queuedItems = new ObservableCollection<QueuedItem>();
@@ -782,11 +785,13 @@ namespace dvdrip
                 
                 System.Diagnostics.Process.Start("https://www.makemkv.com/download/");
                 System.Diagnostics.Process.Start("https://www.makemkv.com/forum2/viewtopic.php?f=5&t=1053");
-                
+
+                notifier.Notify(mqttNotifyState.updateMKV, "Update Make MKV to latest version");
+
             }
             catch (Exception ex)
             {
-
+                notifier.Notify(mqttNotifyState.generic, ex.InnerException.ToString());
             }
             return "";
             

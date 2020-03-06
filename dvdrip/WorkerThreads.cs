@@ -120,6 +120,7 @@ namespace dvdrip
                     string result = ripMkvOutput.ToString();
                     if(result.Contains("0 titles saved"))
                     {
+                        notifier.Notify(mqttNotifyState.rip, "Rip Failed: " + itemToRip.title);
                         throw new Exception("failed rip", new Exception(result));
                     }
 
@@ -136,13 +137,17 @@ namespace dvdrip
                 }
                 catch (Exception e)
                 {
+                    notifier.Notify(mqttNotifyState.generic, "failed to move: ripped file - " + rippedTitle + "      path - " + itemToRip.pathToRip);
                     throw new FileIOException("failed to move: ripped file - " + rippedTitle + "      path - " + itemToRip.pathToRip, e.InnerException);
+                    
                 }
             }
             catch (Exception e)
             {
-                if(e.InnerException != null)
+                
+                if (e.InnerException != null)
                 {
+                   
                     StringBuilder errormessage = new StringBuilder(e.InnerException.ToString());
                     itemToRip.failedRipText = errormessage;
                     itemToRip.failedRip = true;
@@ -277,7 +282,10 @@ namespace dvdrip
                         lvInProgress.UpdateLayout();
                     }));
                     currentlyRipping = false;
-
+                    if(waitingToRip.Count == 0)
+                    {
+                        notifier.Notify(mqttNotifyState.complete, "Disc Complete: " + thisItem.title);
+                    }
                 }
                 else
                 {
@@ -323,6 +331,7 @@ namespace dvdrip
                         StringBuilder errormessage = new StringBuilder(ex.InnerException.ToString());
                         thisItem.failedCompressText = errormessage;
                         thisItem.failedCompression = true;
+                        notifier.Notify(mqttNotifyState.compress, "Compression Failed: " + errormessage.ToString());
                     }
 
 
@@ -355,96 +364,112 @@ namespace dvdrip
 
         private async void copyfileThread(object sender, DoWorkEventArgs e)
         {
-            while (isCopyThreadRunning)
+            try
             {
-                if (!currentlyCopying && waitingToCopy.Count > 0)
+                while (isCopyThreadRunning)
                 {
-                    QueuedItem itemToCopy = waitingToCopy[0];
-                    waitingToCopy.RemoveAt(0);
+                    if (!currentlyCopying && waitingToCopy.Count > 0)
+                    {
 
-                    QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCopy.title).FirstOrDefault();
-                    
+                        Debug.WriteLine("Waiting to copy: " + waitingToCopy.Count.ToString());
+                        QueuedItem itemToCopy = waitingToCopy[0];
+                        waitingToCopy.RemoveAt(0);
+
+                        QueuedItem thisItem = (QueuedItem)queuedItems.Where(f => f.title == itemToCopy.title).FirstOrDefault();
+
 
                         thisItem.copying = true;
-                    System.Diagnostics.Debug.WriteLine("Start copying " + thisItem.title);
-                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
-                    {
-                        lvInProgress.Items.Refresh();
-                        lvInProgress.UpdateLayout();
-                    }));
+                        System.Diagnostics.Debug.WriteLine("Start copying " + thisItem.title);
+                        await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                        {
+                            lvInProgress.Items.Refresh();
+                            lvInProgress.UpdateLayout();
+                        }));
 
-                    System.Diagnostics.Debug.WriteLine("copying " + thisItem.title);
-                    StringBuilder copyToPath = new StringBuilder();
+                        System.Diagnostics.Debug.WriteLine("copying " + thisItem.title);
+                        StringBuilder copyToPath = new StringBuilder();
 
-                    if (thisItem.isTV)
-                    {
+                        if (thisItem.isTV)
+                        {
 
-                        copyToPath.Append(ConfigurationManager.AppSettings["pathToNetworkMedia"]);
-                        copyToPath.Append("TV\\");
-                        copyToPath.Append(thisItem.tvShowTitle);
-                        copyToPath.Append("\\S");
-                        copyToPath.Append(thisItem.tvSeason.ToString("D2"));
+                            copyToPath.Append(ConfigurationManager.AppSettings["pathToNetworkMedia"]);
+                            copyToPath.Append("TV\\");
+                            copyToPath.Append(thisItem.tvShowTitle);
+                            copyToPath.Append("\\S");
+                            copyToPath.Append(thisItem.tvSeason.ToString("D2"));
 
-                        try { DirectoryInfo di = Directory.CreateDirectory(copyToPath.ToString()); }
-                        catch (Exception ex) { }
-                    }
-                    else
-                    {   //movie
-                        copyToPath.Append(ConfigurationManager.AppSettings["pathToNetworkMedia"]);
-                        copyToPath.Append("Movies\\");
+                            try { DirectoryInfo di = Directory.CreateDirectory(copyToPath.ToString()); }
+                            catch (Exception ex) { }
+                        }
+                        else
+                        {   //movie
+                            copyToPath.Append(ConfigurationManager.AppSettings["pathToNetworkMedia"]);
+                            copyToPath.Append("Movies\\");
+                            copyToPath.Append(thisItem.title);
+
+                            try { Directory.Delete(copyToPath.ToString(), true); }
+                            catch (Exception ex) { }
+
+                            try { DirectoryInfo di = Directory.CreateDirectory(copyToPath.ToString()); }
+                            catch (Exception ex) { }
+                        }
+
+                        copyToPath.Append("\\");
                         copyToPath.Append(thisItem.title);
+                        copyToPath.Append(".mkv");
 
-                        try { Directory.Delete(copyToPath.ToString(), true); }
-                        catch (Exception ex) { }
-
-                        try { DirectoryInfo di = Directory.CreateDirectory(copyToPath.ToString()); }
-                        catch (Exception ex) { }
-                    }
-
-                    copyToPath.Append("\\");
-                    copyToPath.Append(thisItem.title);
-                    copyToPath.Append(".mkv");
-
-                    try
-                    {
+                        try
+                        {
 #if TESTINGNODISC
                         System.Threading.Thread.Sleep(20000);
 #else
-                        //generate md5 checksum of original
-                        string originalMD5 = getMD5Hash(thisItem.pathToCompression);
-                        
-                        File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
+                            //generate md5 checksum of original
+                            string originalMD5 = getMD5Hash(thisItem.pathToCompression);
 
-                        string copiedMD5 = getMD5Hash(copyToPath.ToString());
+                            File.Copy(thisItem.pathToCompression, copyToPath.ToString(), true);
 
-                        if ( originalMD5 != copiedMD5)
-                        {
-                            throw new Exception("hashes dont match");
-                        }
-                        File.Delete(thisItem.pathToRip);
-                        File.Delete(thisItem.pathToCompression);
-                        Directory.Delete(thisItem.fullPath);
-                        
+                            string copiedMD5 = getMD5Hash(copyToPath.ToString());
+
+                            if (originalMD5 != copiedMD5)
+                            {
+                                throw new Exception("hashes dont match");
+                            }
+                            File.Delete(thisItem.pathToRip);
+                            File.Delete(thisItem.pathToCompression);
+                            Directory.Delete(thisItem.fullPath);
+
 #endif
-                        thisItem.copying = false;
-                        thisItem.copied = true;
-                        thisItem.removed = true;
-                    }
-                    catch (Exception deleteFailed)
-                    {
-                        thisItem.failedCopy = true;
-                        Debug.Write(deleteFailed.InnerException);
-                    }
+                            thisItem.copying = false;
+                            thisItem.copied = true;
+                            thisItem.removed = true;
+                        }
+                        catch (Exception deleteFailed)
+                        {
+                            thisItem.failedCopy = true;
+                            Debug.WriteLine("failed to delete!");
+                            Debug.Write(deleteFailed.InnerException);
+                            notifier.Notify(mqttNotifyState.copy, "Copy/Delete Failed: " + deleteFailed.InnerException);
 
-                    System.Diagnostics.Debug.WriteLine("copy of " + thisItem.title + " complete");
+                        }
 
-                    await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
-                    {
-                        lvInProgress.Items.Refresh();
-                        lvInProgress.UpdateLayout();
-                    }));
-                    currentlyCopying = false;
+                        System.Diagnostics.Debug.WriteLine("copy of " + thisItem.title + " complete");
+
+                        await Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() =>
+                        {
+                            lvInProgress.Items.Refresh();
+                            lvInProgress.UpdateLayout();
+                        }));
+                        currentlyCopying = false;
+
+                    }
                 }
+
+            }
+            catch(Exception genericCopyEx)
+            {
+                Debug.WriteLine("copy failed");
+                Debug.Write(genericCopyEx.InnerException);
+                notifier.Notify(mqttNotifyState.copy, "Copy/Delete Failed: " + genericCopyEx.InnerException);
             }
         }
 
